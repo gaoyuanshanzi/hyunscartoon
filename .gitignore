@@ -1,0 +1,14 @@
+# 깃허브 업스트림 & Vercel 배포 설정
+node_modules/
+.next/
+.vercel/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env.local
+.env*.local
+backend/outputs/
+*.log
+.DS_Store
+Thumbs.db
