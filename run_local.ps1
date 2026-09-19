@@ -21,11 +21,9 @@ if (-not (Test-Path "backend\fonts\malgun.ttf")) {
 }
 
 # 프론트엔드 의존성 확인
-if (-not (Test-Path "frontend\node_modules")) {
+if (-not (Test-Path "node_modules")) {
     Write-Host "📦 프론트엔드 의존성 설치 중..." -ForegroundColor Yellow
-    Set-Location frontend
     cmd /c "npm install"
-    Set-Location ..
 }
 
 Write-Host ""
@@ -48,5 +46,4 @@ Start-Sleep -Seconds 2
 
 # 프론트엔드 실행
 Write-Host "🌐 Next.js 프론트엔드 시작..." -ForegroundColor Cyan
-Set-Location frontend
 cmd /c "npm run dev"

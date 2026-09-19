@@ -33,5 +33,4 @@ echo   관리자 로그인: admin / 123jesus
 echo   브라우저: http://localhost:3000
 echo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo.
-cd frontend
 cmd /k "npm run dev"
