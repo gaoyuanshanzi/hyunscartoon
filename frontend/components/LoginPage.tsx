@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { BookOpen, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface Props {
   onLogin: (token: string) => void;

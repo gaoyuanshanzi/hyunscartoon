@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ChevronLeft, Download, ZoomIn, ZoomOut, MessageSquare, MessageSquareOff } from 'lucide-react';
 import type { CutData } from './StudioPage';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface Props {
   cuts: CutData[];
@@ -19,7 +19,8 @@ export default function WebtoonViewer({ cuts, title, onBack }: Props) {
   const sortedCuts = [...cuts].sort((a, b) => a.cut_index - b.cut_index);
 
   const handleDownload = async (cut: CutData) => {
-    const url = `${API_BASE}${showBubble ? cut.image_url : cut.image_url.replace('_bubble', '')}`;
+    const targetUrl = showBubble ? cut.image_url : cut.image_url.replace('_bubble', '');
+    const url = targetUrl.startsWith('http') ? targetUrl : `${API_BASE}${targetUrl}`;
     const a = document.createElement('a');
     a.href = url;
     a.download = `webtoon_cut_${cut.cut_index.toString().padStart(2, '0')}.png`;
@@ -108,14 +109,20 @@ export default function WebtoonViewer({ cuts, title, onBack }: Props) {
                   </div>
                 )}
 
-                {/* 컷 이미지 */}
-                <div className="relative overflow-hidden">
-                  <img
-                    src={`${API_BASE}${showBubble ? cut.image_url : cut.image_url.replace('_bubble', '')}`}
-                    alt={cut.scene_title}
-                    className="w-full h-auto block"
-                    loading="lazy"
-                  />
+                  {/* 컷 이미지 */}
+                  <div className="relative overflow-hidden">
+                    {(() => {
+                      const targetUrl = showBubble ? cut.image_url : cut.image_url.replace('_bubble', '');
+                      const fullUrl = targetUrl.startsWith('http') ? targetUrl : `${API_BASE}${targetUrl}`;
+                      return (
+                        <img
+                          src={fullUrl}
+                          alt={cut.scene_title}
+                          className="w-full h-auto block"
+                          loading="lazy"
+                        />
+                      );
+                    })()}
 
                   {/* 컷 번호 오버레이 */}
                   <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-lg font-mono">

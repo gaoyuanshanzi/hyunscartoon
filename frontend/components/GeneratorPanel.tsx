@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { Sparkles, ChevronDown, ChevronUp, CheckCircle, Clock, Image as ImgIcon, BookOpen, RefreshCw } from 'lucide-react';
 import type { CutData } from './StudioPage';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 const GENRE_OPTIONS = [
   { value: 'drama',   label: '🎭 드라마', desc: '현실적인 감동 이야기' },
@@ -334,7 +334,7 @@ export default function GeneratorPanel({
                       {cut ? (
                         <>
                           <img
-                            src={`${API_BASE}${cut.image_url}`}
+                            src={cut.image_url.startsWith('http') ? cut.image_url : `${API_BASE}${cut.image_url}`}
                             alt={cut.scene_title}
                             className="w-full h-full object-cover pop-in"
                           />
