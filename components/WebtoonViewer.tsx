@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, Download, ZoomIn, ZoomOut, MessageSquare, MessageSquareOff, Share2, Check, Cloud, HardDrive, X } from 'lucide-react';
+import { ChevronLeft, Download, ZoomIn, ZoomOut, MessageSquare, MessageSquareOff, Share2, Check, Cloud, HardDrive, X, Loader2 } from 'lucide-react';
 import type { CutData } from './StudioPage';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
@@ -21,6 +21,8 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
   const [saveNeon, setSaveNeon] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
+  const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
 
   const sortedCuts = [...cuts].sort((a, b) => a.cut_index - b.cut_index);
 
@@ -30,8 +32,19 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
     return `${API_BASE}${url}`;
   };
 
+  const handleImageError = (cutIndex: number) => {
+    console.warn(`[WebtoonViewer] Cut #${cutIndex} image error, switching to scene fallback`);
+    setFailedImages(prev => ({ ...prev, [cutIndex]: true }));
+  };
+
+  const handleImageLoad = (cutIndex: number) => {
+    setLoadedImages(prev => ({ ...prev, [cutIndex]: true }));
+  };
+
   const handleDownloadSingle = async (cut: CutData) => {
-    const fullUrl = getFullUrl(cut.image_url);
+    const isFailed = failedImages[cut.cut_index];
+    const targetUrl = isFailed && cut.fallback_url ? cut.fallback_url : cut.image_url;
+    const fullUrl = getFullUrl(targetUrl);
     const a = document.createElement('a');
     a.href = fullUrl;
     a.download = `webtoon_cut_${cut.cut_index.toString().padStart(2, '0')}.png`;
@@ -44,10 +57,18 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
     const cutsHtml = sortedCuts
       .map(cut => {
         const fullImg = getFullUrl(cut.image_url);
+        const fallbackImg = cut.fallback_url ? getFullUrl(cut.fallback_url) : '';
+
         return `
         <div style="border-bottom: 2px solid #e2e8f0; background: #ffffff; position: relative; margin-bottom: 8px;">
           <div style="position: relative; background: #0f172a; min-height: 400px; display: flex; justify-content: center; align-items: center;">
-            <img src="${fullImg}" alt="${cut.scene_title}" style="width: 100%; height: auto; display: block; max-width: 800px;" />
+            <img 
+              src="${fullImg}" 
+              alt="${cut.scene_title}" 
+              loading="lazy" 
+              style="width: 100%; height: auto; display: block; max-width: 800px;" 
+              ${fallbackImg ? `onerror="if (!this.dataset.retried) { this.dataset.retried = '1'; this.src = '${fallbackImg}'; }"` : ''}
+            />
           </div>
           <div style="padding: 16px 20px; background: #ffffff; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
             <div style="flex: 1;">
@@ -107,7 +128,7 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
     <div class="footer">
       <div style="font-size: 32px; margin-bottom: 8px;">🎉</div>
       <h3>— 끝 (FIN) —</h3>
-      <p>Hyun's Cartoon Studio · Powered by AI &amp; Neon PostgreSQL</p>
+      <p>Hyun's Cartoon Studio · Powered by Pollinations AI &amp; Neon PostgreSQL</p>
     </div>
   </div>
 </body>
@@ -194,7 +215,7 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
 
         {/* 뷰어 컨트롤 */}
         <div className="flex items-center gap-2">
-          {/* 내보내기 (Export) 메인 버튼 */}
+          {/* 내보내기 버튼 */}
           <button
             onClick={() => {
               setExportStatus('');
@@ -249,13 +270,13 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
           {/* 웹툰 제목 배너 */}
           <div className="bg-gradient-to-r from-gray-900 via-slate-800 to-gray-900 text-white text-center py-8 px-4">
             <div className="text-xs text-indigo-300 font-mono tracking-widest uppercase mb-1">
-              AI 자동 생성 웹툰 · NEON POSTGRESQL 연동
+              AI 자동 생성 웹툰 · 20컷 연속 일러스트
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight">{title || '웹툰'}</h1>
             <div className="flex items-center justify-center gap-3 mt-3 text-xs text-gray-300">
               <span className="bg-white/10 px-2.5 py-1 rounded-full">총 {sortedCuts.length}컷</span>
               <span>·</span>
-              <span>한국어 말풍선 일러스트</span>
+              <span>AI 일러스트 + 한글 말풍선</span>
               {sessionId && (
                 <>
                   <span>·</span>
@@ -265,14 +286,16 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
             </div>
           </div>
 
-          {/* 컷 목록 (세로 스크롤) */}
+          {/* 컷 목록 */}
           <div className="bg-white divide-y-2 divide-gray-100">
             {sortedCuts.map(cut => {
-              const fullUrl = getFullUrl(cut.image_url);
+              const isFailed = failedImages[cut.cut_index];
+              const isLoaded = loadedImages[cut.cut_index];
+              const displayUrl = isFailed && cut.fallback_url ? getFullUrl(cut.fallback_url) : getFullUrl(cut.image_url);
 
               return (
                 <div key={cut.cut_index} className="webtoon-panel group relative bg-white">
-                  {/* 구간 레이블 (막 시작 시 강조 배너) */}
+                  {/* 구간 레이블 */}
                   {[1, 6, 11, 16].includes(cut.cut_index) && (
                     <div className="bg-gradient-to-r from-gray-950 via-indigo-950 to-gray-950 text-white text-center py-2.5 px-4 text-xs font-bold tracking-widest border-b border-indigo-900/50">
                       {cut.phase?.toUpperCase() || `CHAPTER ${Math.ceil(cut.cut_index / 5)}`}
@@ -280,19 +303,26 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
                   )}
 
                   {/* 컷 이미지 영역 */}
-                  <div className="relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-[400px]">
+                  <div className="relative overflow-hidden bg-slate-900 flex items-center justify-center min-h-[420px]">
+                    {/* 로딩 스피너 (이미지 로드 전 표시) */}
+                    {!isLoaded && !isFailed && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 z-10 text-white gap-2">
+                        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                        <span className="text-xs text-gray-300">컷 #{cut.cut_index} AI 일러스트 생성/로딩 중...</span>
+                      </div>
+                    )}
+
                     <img
-                      src={fullUrl}
+                      src={displayUrl}
                       alt={cut.scene_title}
-                      className="w-full h-auto block"
+                      className={`w-full h-auto block transition-opacity duration-300 ${isLoaded || isFailed ? 'opacity-100' : 'opacity-30'}`}
                       loading="lazy"
-                      onError={e => {
-                        console.error('Image load error for cut', cut.cut_index);
-                      }}
+                      onLoad={() => handleImageLoad(cut.cut_index)}
+                      onError={() => handleImageError(cut.cut_index)}
                     />
 
-                    {/* 개별 컷 다운로드 버튼 (호버 시 표시) */}
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    {/* 개별 컷 다운로드 버튼 */}
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <button
                         onClick={() => handleDownloadSingle(cut)}
                         className="bg-black/70 hover:bg-black text-white p-2.5 rounded-xl shadow-lg backdrop-blur-md transition-all flex items-center gap-1.5 text-xs font-medium"
@@ -317,7 +347,7 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
                         <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{cut.scene_summary}</p>
                       </div>
 
-                      {cut.dialogue && (
+                      {cut.dialogue && showBubble && (
                         <div className="flex-shrink-0 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 max-w-[240px]">
                           <p className="text-[11px] font-bold text-indigo-600 mb-0.5">💬 {cut.speaker}</p>
                           <p className="text-xs font-medium text-slate-800 line-clamp-2">"{cut.dialogue}"</p>
@@ -330,12 +360,12 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
             })}
           </div>
 
-          {/* 웹툰 종료 배너 + 하단 내보내기 버튼 */}
+          {/* 웹툰 종료 배너 */}
           <div className="bg-gray-900 text-white text-center py-10 px-4 space-y-4">
             <div className="text-3xl">🎉</div>
             <h3 className="text-lg font-bold">— 끝 (FIN) —</h3>
             <p className="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
-              20컷 웹툰이 성공적으로 완성되었습니다. 상단 또는 아래 버튼으로 HTML 파일 및 Neon DB에 안전하게 내보내세요.
+              20컷 웹툰이 모두 완성되었습니다. 상단 또는 아래 버튼으로 HTML 파일 및 Neon DB에 안전하게 내보내세요.
             </p>
             <div className="pt-2">
               <button
@@ -354,11 +384,10 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
         </div>
       </div>
 
-      {/* ═══════════ EXPORT (내보내기) 모달 ═══════════ */}
+      {/* 내보내기 모달 */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* 모달 헤더 */}
             <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5 text-white flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold flex items-center gap-2">
@@ -375,10 +404,8 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
               </button>
             </div>
 
-            {/* 모달 본문 */}
             <div className="p-6 space-y-5">
               <div className="space-y-3">
-                {/* 1. 로컬 다운로드 옵션 */}
                 <label className="flex items-start gap-3 p-3.5 rounded-2xl border-2 border-gray-100 hover:border-emerald-200 cursor-pointer transition-all bg-gray-50/50">
                   <input
                     type="checkbox"
@@ -392,12 +419,11 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
                       로컬 HTML 다운로드
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                      인터넷 없이도 브라우저에서 바로 열리는 독립형 웹툰 HTML 파일(.html)로 내 컴퓨터에 다운로드합니다.
+                      모든 20컷 일러스트가 포함된 독립형 웹툰 HTML 파일(.html)로 내 컴퓨터에 다운로드합니다.
                     </p>
                   </div>
                 </label>
 
-                {/* 2. Neon DB 저장 옵션 */}
                 <label className="flex items-start gap-3 p-3.5 rounded-2xl border-2 border-gray-100 hover:border-emerald-200 cursor-pointer transition-all bg-gray-50/50">
                   <input
                     type="checkbox"
@@ -411,13 +437,12 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
                       Neon PostgreSQL DB 저장
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                      사용자의 Neon 클라우드 데이터베이스(webtoon_sessions)에 영구 저장하여 언제든 다시 불러올 수 있습니다.
+                      사용자의 Neon 클라우드 데이터베이스(webtoon_sessions)에 영구 저장합니다.
                     </p>
                   </div>
                 </label>
               </div>
 
-              {/* 상태 메시지 */}
               {exportStatus && (
                 <div
                   className={`text-xs px-3.5 py-2.5 rounded-xl border font-medium ${
@@ -430,7 +455,6 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
                 </div>
               )}
 
-              {/* 버튼 그룹 */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -445,11 +469,7 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
                   disabled={exporting || (!saveLocal && !saveNeon)}
                   className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 rounded-xl text-sm shadow-md hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
                 >
-                  {exporting ? (
-                    <span className="inline-block animate-spin">⏳</span>
-                  ) : (
-                    <Check className="w-4 h-4" />
-                  )}
+                  {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   {exporting ? '처리 중...' : '저장하기'}
                 </button>
               </div>

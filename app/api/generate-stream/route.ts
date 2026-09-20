@@ -4,6 +4,34 @@ import { saveNeonSession, saveNeonCut } from '@/lib/neon';
 
 export const dynamic = 'force-dynamic';
 
+// 20개 각 컷별 고유 시각적 장면 프롬프트 템플릿
+const SCENE_PROMPTS = [
+  // 1-5 기 (도입)
+  'young student waking up in cozy bedroom, soft morning sunlight streaming through window, peaceful dawn, blankets, detailed anime room interior',
+  'young student jumping out of bed, stretching arms with energized smile, messy morning hair, bright cozy bedroom, anime illustration',
+  'young student walking through hallway, looking curious towards kitchen door, warm morning indoor lighting, clean anime lines',
+  'young student getting dressed in neat casual clothes, putting on backpack, ready for the day, bright morning daylight',
+  'warm cozy kitchen dining table with delicious breakfast dishes, steaming soup and rice, inviting home atmosphere',
+  // 6-10 승 (전개)
+  'young student eating warm breakfast happily with mother smiling warmly across dining table, heartwarming family moment, anime style',
+  'student tying shoelaces at front entrance door, opening door to sunny day outside, fresh morning breeze',
+  'student walking along tree-lined city sidewalk in morning sunlight, green trees, blue sky with soft white clouds, peaceful street',
+  'crowded city bus stop with students and commuters waiting, student looking at watch, morning commute, vibrant urban street',
+  'blue city bus arriving at bus stop with doors opening, passengers stepping forward, dynamic urban street perspective',
+  // 11-15 전 (위기 및 절정)
+  'inside crowded city bus, passengers holding yellow handrails, student standing, dramatic sunlight through bus windows, anime scene',
+  'sudden bus turn, passengers swaying, dynamic camera angle, tension inside the city bus, action anime atmosphere',
+  'close-up dramatic moment of shoe accidentally stepping on foot, student wincing with surprised reaction, dynamic anime perspective',
+  'cute anime schoolgirl turning around in shock, apologetic wide eyes, blushing in embarrassment, cute manhwa face',
+  'two students making eye contact inside bus, intense shared moment of surprise and realization, sparkling anime lighting',
+  // 16-20 결 (결말 및 여운)
+  'schoolgirl bowing politely with hands clasped saying sorry, sweet apologetic smile, charming anime expression',
+  'student smiling kindly waving hand in reassurance, friendly and understanding expression, gentle warm morning glow',
+  'two students chatting pleasantly standing side by side on bus, budding friendship, gentle sunlight through window',
+  'two students stepping off bus at school bus stop together, smiling at each other under bright blue sky',
+  'students walking together towards school gate in golden morning light, hopeful peaceful ending, beautiful anime artwork, masterpiece',
+];
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const story = searchParams.get('story') || '';
@@ -16,10 +44,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // 고유 세션 ID 생성
   const sessionId = 'session_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
 
-  // 1. 스토리 문장 단위 분할 (기승전결 20컷)
+  // 1. 스토리 분할 (기승전결 20컷)
   const rawSentences = story
     .split(/(?<=[.!?\n])\s+/)
     .map(s => s.trim())
@@ -49,8 +76,9 @@ export async function GET(request: NextRequest) {
 
   const isFemale = /그녀|소녀|여학생|언니|누나|지아|수아|유진/.test(story);
   const webtoonTitle = `웹툰: ${mainChar}의 이야기`;
+  const baseSeed = Math.floor(10000 + Math.random() * 90000);
 
-  // Neon DB에 세션 저장 (백그라운드 비동기)
+  // Neon DB에 세션 저장
   saveNeonSession(sessionId, webtoonTitle, genre, story).catch(e =>
     console.error('[GenerateStream] Neon session save error:', e)
   );
@@ -78,6 +106,7 @@ export async function GET(request: NextRequest) {
     speaker: string;
     dialogue: string;
     image_url: string;
+    fallback_url: string;
   }
 
   const cuts: CutItem[] = [];
@@ -103,7 +132,16 @@ export async function GET(request: NextRequest) {
 
       const speaker = cutNum % 3 !== 0 ? mainChar : '내레이션';
 
-      // 100% 신뢰할 수 있는 고해상도 웹툰 AI 일러스트 Data URI 생성
+      // 1. 20개 각 컷마다 100% 서로 다른 고유한 Pollinations.ai 프롬프트 및 시드 생성
+      const sceneDetail = SCENE_PROMPTS[(cutNum - 1) % SCENE_PROMPTS.length];
+      const cutSeed = (baseSeed + cutNum * 719) % 999999;
+      const cleanPrompt = `anime webtoon style, ${sceneDetail}, masterpiece, vibrant aesthetic, highly detailed`;
+      const encodedPrompt = encodeURIComponent(cleanPrompt);
+
+      // Pollinations.ai 무료 API (sana 모델 적용)
+      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=600&height=800&nologo=true&seed=${cutSeed}&model=sana`;
+
+      // 2. 20개 각 컷마다 100% 서로 다른 고유한 SVG 일러스트 Data URI 생성 (오프라인/폴백용)
       const dataUri = generateWebtoonCutDataUri({
         cut_index: cutNum,
         phase: label,
@@ -123,15 +161,22 @@ export async function GET(request: NextRequest) {
         scene_summary: narration || sentencePick,
         speaker,
         dialogue,
-        image_url: dataUri,
+        image_url: pollinationsUrl,
+        fallback_url: dataUri,
       };
 
       cuts.push(cutData);
 
-      // Neon DB에 각 컷 저장 (백그라운드 비동기)
-      saveNeonCut(sessionId, cutData).catch(e =>
-        console.error(`[GenerateStream] Error saving cut ${cutNum} to Neon:`, e)
-      );
+      // Neon DB에 각 컷 저장
+      saveNeonCut(sessionId, {
+        cut_index: cutNum,
+        phase: label,
+        scene_title: `#${cutNum} ${title}`,
+        scene_summary: narration || sentencePick,
+        speaker,
+        dialogue,
+        image_url: pollinationsUrl,
+      }).catch(e => console.error(`[GenerateStream] Error saving cut ${cutNum} to Neon:`, e));
 
       cutNum++;
     }
@@ -156,12 +201,11 @@ export async function GET(request: NextRequest) {
 
       send({
         type: 'status',
-        message: `✅ 콘티 완성! 총 20컷 확정. AI 일러스트 생성 중...`,
+        message: `✅ 콘티 완성! 총 20컷 확정. AI 일러스트 생성 시작...`,
         progress: 10,
         session_id: sessionId,
       });
 
-      // 20컷을 순차적으로 전달 (실시간 애니메이션 효과)
       for (let i = 0; i < cuts.length; i++) {
         await new Promise(r => setTimeout(r, 120));
         const pct = Math.round(10 + ((i + 1) / cuts.length) * 88);
@@ -170,7 +214,7 @@ export async function GET(request: NextRequest) {
           cut_index: cuts[i].cut_index,
           total: 20,
           progress: pct,
-          message: `🎨 ${i + 1}/20컷 일러스트 완료`,
+          message: `🎨 ${i + 1}/20컷 AI 일러스트 준비 완료`,
           session_id: sessionId,
           cut_data: cuts[i],
         });

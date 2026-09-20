@@ -10,317 +10,271 @@ export interface WebtoonCutInput {
   isFemale?: boolean;
 }
 
+// 20개 각 컷별 고유 배경 및 캐릭터 포즈 렌더러
 export function generateWebtoonCutSvg(cut: WebtoonCutInput): string {
-  const { cut_index, phase, scene_title, scene_summary, speaker, dialogue, genre = 'drama', isFemale = false } = cut;
+  const { cut_index, phase, scene_title, scene_summary, speaker, dialogue, genre = 'drama' } = cut;
 
   const width = 768;
   const height = 1024;
 
-  // 1. 장르 및 컷 번호에 따른 테마 색상 팔레트
-  const palettes: Record<string, { top: string; mid: string; bot: string; accent: string; glow: string; textDark: string }> = {
-    drama: {
-      top: '#1e293b',
-      mid: '#334155',
-      bot: '#0f172a',
-      accent: '#38bdf8',
-      glow: '#60a5fa',
-      textDark: '#0f172a',
-    },
-    romance: {
-      top: '#4c1d95',
-      mid: '#831843',
-      bot: '#1e1b4b',
-      accent: '#f472b6',
-      glow: '#fb7185',
-      textDark: '#831843',
-    },
-    fantasy: {
-      top: '#1e1b4b',
-      mid: '#312e81',
-      bot: '#09090b',
-      accent: '#a855f7',
-      glow: '#c084fc',
-      textDark: '#3b0764',
-    },
-    thriller: {
-      top: '#18181b',
-      mid: '#27272a',
-      bot: '#09090b',
-      accent: '#ef4444',
-      glow: '#f87171',
-      textDark: '#450a0a',
-    },
-    action: {
-      top: '#172554',
-      mid: '#1e3a8a',
-      bot: '#020617',
-      accent: '#f97316',
-      glow: '#fb923c',
-      textDark: '#7c2d12',
-    },
-  };
+  // 20개 컷별 고유 색상 및 분위기 팔레트
+  const sceneThemes: Array<{ skyTop: string; skyMid: string; skyBot: string; accent: string; sfx: string; desc: string }> = [
+    // 1-5 기 (도입): 아침 방, 기상, 집안
+    { skyTop: '#38bdf8', skyMid: '#93c5fd', skyBot: '#e0f2fe', accent: '#0284c7', sfx: '햇살이 번쩍!', desc: '침실 창가 아침 햇살' },
+    { skyTop: '#60a5fa', skyMid: '#bfdbfe', skyBot: '#eff6ff', accent: '#2563eb', sfx: '기지개 쭉~', desc: '침대에서 일어나는 순간' },
+    { skyTop: '#818cf8', skyMid: '#c7d2fe', skyBot: '#f5f3ff', accent: '#4f46e5', sfx: '어라...?', desc: '복도에서 들려오는 소리' },
+    { skyTop: '#34d399', skyMid: '#a7f3d0', skyBot: '#ecfdf5', accent: '#059669', sfx: '가방을 챙기며', desc: '옷을 갈아입고 등교 준비' },
+    { skyTop: '#fbbf24', skyMid: '#fde68a', skyBot: '#fffbeb', accent: '#d97706', sfx: '보글보글~', desc: '따스한 주방 아침 식사' },
 
-  const theme = palettes[genre.toLowerCase()] || palettes.drama;
+    // 6-10 승 (전개): 식사, 집 밖, 등굣길, 버스 정류장
+    { skyTop: '#f472b6', skyMid: '#fbcfe8', skyBot: '#fff1f2', accent: '#db2777', sfx: '맛있다!', desc: '가족과 나누는 따뜻한 대화' },
+    { skyTop: '#38bdf8', skyMid: '#bae6fd', skyBot: '#f0f9ff', accent: '#0284c7', sfx: '찰칵! 문이 열리고', desc: '현관문을 나서는 순간' },
+    { skyTop: '#4ade80', skyMid: '#bbf7d0', skyBot: '#f0fdf4', accent: '#16a34a', sfx: '또각또각', desc: '초록 가로수길 걷기' },
+    { skyTop: '#60a5fa', skyMid: '#93c5fd', skyBot: '#dbeafe', accent: '#2563eb', sfx: '시계를 힐끔', desc: '시끌벅적 버스 정류장' },
+    { skyTop: '#f59e0b', skyMid: '#fcd34d', skyBot: '#fef3c7', accent: '#b45309', sfx: '부르릉~ 쾅!', desc: '도착하는 파란 시내버스' },
 
-  // 4개 막(기승전결)별 하늘 및 분위기 조정
-  let skyGradientId = `sky_${cut_index}`;
-  let skyTop = theme.top;
-  let skyMid = theme.mid;
-  let skyBot = theme.bot;
+    // 11-15 전 (위기 및 절정): 버스 안, 흔들림, 충돌, 당황
+    { skyTop: '#1e293b', skyMid: '#475569', skyBot: '#0f172a', accent: '#38bdf8', sfx: '덜컹덜컹...', desc: '만원 버스 안 손잡이를 잡고' },
+    { skyTop: '#431407', skyMid: '#9a3412', skyBot: '#18181b', accent: '#ea580c', sfx: '끼이익—!!', desc: '버스의 급정거와 흔들림' },
+    { skyTop: '#881337', skyMid: '#e11d48', skyBot: '#1e1b4b', accent: '#f43f5e', sfx: '쿵! 앗!', desc: '발을 밟히는 극적인 충격' },
+    { skyTop: '#701a75', skyMid: '#c026d3', skyBot: '#2e1065', accent: '#e879f9', sfx: '화들짝!!', desc: '뒤돌아보며 깜짝 놀란 얼굴' },
+    { skyTop: '#1e1b4b', skyMid: '#4338ca', skyBot: '#0f172a', accent: '#a855f7', sfx: '두근... 두근...', desc: '시선이 마주치는 숨막히는 순간' },
 
-  if (cut_index <= 5) {
-    // 기: 은은한 아침 햇살 / 시작
-    skyTop = genre === 'romance' ? '#fda4af' : '#60a5fa';
-    skyMid = genre === 'romance' ? '#fbcfe8' : '#93c5fd';
-    skyBot = genre === 'romance' ? '#ffe4e6' : '#dbeafe';
-  } else if (cut_index <= 10) {
-    // 승: 활기찬 낮 / 탐색
-    skyTop = genre === 'fantasy' ? '#312e81' : '#3b82f6';
-    skyMid = genre === 'fantasy' ? '#4338ca' : '#60a5fa';
-    skyBot = genre === 'fantasy' ? '#1e1b4b' : '#bfdbfe';
-  } else if (cut_index <= 15) {
-    // 전: 극적 석양 / 어두운 밤 / 위기
-    skyTop = genre === 'thriller' ? '#09090b' : '#1e1b4b';
-    skyMid = genre === 'thriller' ? '#7f1d1d' : '#831843';
-    skyBot = genre === 'thriller' ? '#450a0a' : '#f97316';
-  } else {
-    // 결: 평화로운 여명 / 별빛 밤하늘 / 새로운 내일
-    skyTop = genre === 'romance' ? '#4c1d95' : '#1e293b';
-    skyMid = genre === 'romance' ? '#ec4899' : '#3b82f6';
-    skyBot = genre === 'romance' ? '#fde047' : '#fdba74';
-  }
-
-  // 감정 효과음 (SFX)
-  const sfxList = [
-    '두근...', '스르륵...', '샤라랑~', '탁!', '바람이 분다...',
-    '어?!', '또각또각', '번뜩!', '쿵!', '스윽...',
-    '위기!!', '콰광!!', '안 돼...!', '각성!', '결의에 찬 눈빛',
-    '휴우...', '따스한 미소', '안도감', '기적처럼...', '내일을 향해!'
+    // 16-20 결 (결말 및 여운): 사과, 미소, 동행, 학교 도착
+    { skyTop: '#ec4899', skyMid: '#f472b6', skyBot: '#fdf2f8', accent: '#be185d', sfx: '정말 죄송해요!', desc: '두 손 모아 정중한 사과' },
+    { skyTop: '#06b6d4', skyMid: '#67e8f9', skyBot: '#ecfeff', accent: '#0891b2', sfx: '괜찮아요 (방긋)', desc: '손을 흔들며 건네는 미소' },
+    { skyTop: '#f43f5e', skyMid: '#fda4af', skyBot: '#fff1f2', accent: '#e11d48', sfx: '소곤소곤~', desc: '나란히 서서 나누는 대화' },
+    { skyTop: '#8b5cf6', skyMid: '#c4b5fd', skyBot: '#f5f3ff', accent: '#7c3aed', sfx: '함께 내리며', desc: '정류장에서 같이 하차' },
+    { skyTop: '#f59e0b', skyMid: '#fbbf24', skyBot: '#fef3c7', accent: '#d97706', sfx: '새로운 시작!', desc: '화사한 학교 정문을 향해' },
   ];
-  const sfx = sfxList[(cut_index - 1) % sfxList.length];
 
-  // 캐릭터 실루엣 및 포즈 계산
-  const charX = width / 2;
-  const charY = height * 0.58;
-
-  // 말풍선 위치 (컷 번호에 따라 좌/우 배치)
-  const isBubbleLeft = cut_index % 2 === 0;
-  const bubbleX = isBubbleLeft ? 40 : width - 380;
-  const bubbleY = height - 260;
+  const t = sceneThemes[(cut_index - 1) % sceneThemes.length];
 
   // 텍스트 이스케이프
-  const esc = (t: string) => (t || '')
+  const esc = (text: string) => (text || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-  // 말풍선 대사 줄바꿈 (최대 2~3줄)
-  const cleanDialogue = dialogue ? esc(dialogue.slice(0, 60)) : '';
-  const cleanSummary = scene_summary ? esc(scene_summary.slice(0, 75)) : '';
   const cleanTitle = esc(scene_title || `컷 #${cut_index}`);
+  const cleanSummary = esc(scene_summary || '');
+  const cleanDialogue = esc(dialogue || '');
   const cleanSpeaker = esc(speaker || '주인공');
+
+  // 20개 각 컷별 독창적인 배경 그래픽 생성
+  let sceneIllustration = '';
+
+  if (cut_index === 1) {
+    // 컷 1: 침실 창문과 쏟아지는 아침 햇살
+    sceneIllustration = `
+      <!-- 창문 틀 -->
+      <rect x="184" y="240" width="400" height="340" rx="16" fill="#ffffff" stroke="#94a3b8" stroke-width="8" opacity="0.9" />
+      <line x1="384" y1="240" x2="384" y2="580" stroke="#94a3b8" stroke-width="6" />
+      <line x1="184" y1="410" x2="584" y2="410" stroke="#94a3b8" stroke-width="6" />
+      <!-- 창밖 푸른 하늘과 태양 -->
+      <circle cx="340" cy="330" r="55" fill="#fde047" opacity="0.8" />
+      <!-- 침대 베개와 이불 -->
+      <path d="M 120,640 Q 384,600 648,640 L 680,780 L 88,780 Z" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="4" />
+      <ellipse cx="280" cy="620" rx="90" ry="40" fill="#ffffff" stroke="#cbd5e1" stroke-width="3" />
+    `;
+  } else if (cut_index === 2) {
+    // 컷 2: 기지개 켜며 일어나는 침대 방
+    sceneIllustration = `
+      <rect x="220" y="260" width="328" height="280" rx="12" fill="#ffffff" opacity="0.8" />
+      <!-- 침대 헤드보드 -->
+      <rect x="160" y="520" width="448" height="180" rx="16" fill="#64748b" />
+      <!-- 인물 기지개 (팔을 위로 뻗은 포즈) -->
+      <circle cx="384" cy="460" r="45" fill="#fbcfe8" />
+      <path d="M 340,490 L 320,380 M 428,490 L 448,380" stroke="#fbcfe8" stroke-width="18" stroke-linecap="round" />
+      <path d="M 330,500 L 438,500 L 418,660 L 350,660 Z" fill="#3b82f6" />
+    `;
+  } else if (cut_index === 5 || cut_index === 6) {
+    // 컷 5, 6: 주방 식탁과 모락모락 음식
+    sceneIllustration = `
+      <!-- 주방 찬장과 선반 -->
+      <rect x="140" y="200" width="488" height="120" rx="8" fill="#475569" opacity="0.7" />
+      <!-- 식탁 테이블 -->
+      <ellipse cx="384" cy="640" rx="280" ry="90" fill="#f8fafc" stroke="#e2e8f0" stroke-width="6" />
+      <!-- 접시와 모락모락 김 -->
+      <ellipse cx="320" cy="630" rx="55" ry="25" fill="#ffffff" stroke="#94a3b8" stroke-width="3" />
+      <ellipse cx="448" cy="630" rx="55" ry="25" fill="#ffffff" stroke="#94a3b8" stroke-width="3" />
+      <!-- 김 올라오는 곡선 -->
+      <path d="M 320,600 Q 310,560 325,530 Q 340,500 325,470" stroke="#cbd5e1" stroke-width="3" fill="none" stroke-linecap="round" />
+      <path d="M 448,600 Q 438,560 453,530 Q 468,500 453,470" stroke="#cbd5e1" stroke-width="3" fill="none" stroke-linecap="round" />
+    `;
+  } else if (cut_index >= 7 && cut_index <= 9) {
+    // 컷 7-9: 아침 거리, 가로수, 버스 정류장
+    sceneIllustration = `
+      <!-- 원경 빌딩군 -->
+      <rect x="80" y="340" width="100" height="300" fill="#334155" opacity="0.6" />
+      <rect x="200" y="280" width="120" height="360" fill="#475569" opacity="0.6" />
+      <rect x="460" y="300" width="110" height="340" fill="#334155" opacity="0.6" />
+      <rect x="590" y="360" width="100" height="280" fill="#475569" opacity="0.6" />
+      <!-- 가로수 나무 -->
+      <circle cx="210" cy="540" r="70" fill="#22c55e" opacity="0.8" />
+      <rect x="200" y="580" width="20" height="90" fill="#78350f" />
+      <!-- 버스 정류장 표지판 -->
+      <rect x="520" y="440" width="24" height="230" fill="#94a3b8" />
+      <circle cx="532" cy="430" r="42" fill="#3b82f6" stroke="#ffffff" stroke-width="4" />
+      <text x="532" y="437" font-family="'Pretendard', sans-serif" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle">BUS</text>
+    `;
+  } else if (cut_index === 10) {
+    // 컷 10: 진입하는 파란 시내버스 정면
+    sceneIllustration = `
+      <!-- 버스 차체 정면 -->
+      <rect x="204" y="340" width="360" height="340" rx="36" fill="#2563eb" stroke="#1e3a8a" stroke-width="6" />
+      <!-- 버스 전면 유리창 -->
+      <rect x="234" y="370" width="300" height="150" rx="16" fill="#93c5fd" opacity="0.85" />
+      <!-- 버스 헤드라이트 -->
+      <circle cx="260" cy="580" r="26" fill="#fef08a" stroke="#ca8a04" stroke-width="3" />
+      <circle cx="508" cy="580" r="26" fill="#fef08a" stroke="#ca8a04" stroke-width="3" />
+      <!-- 번호판 -->
+      <rect x="334" y="590" width="100" height="36" rx="6" fill="#ffffff" />
+      <text x="384" y="615" font-family="sans-serif" font-size="18" font-weight="900" fill="#1e3a8a" text-anchor="middle">701</text>
+    `;
+  } else if (cut_index >= 11 && cut_index <= 14) {
+    // 컷 11-14: 버스 내부, 손잡이, 흔들림, 충돌 순간
+    sceneIllustration = `
+      <!-- 버스 내부 천장 및 창문 -->
+      <rect x="100" y="240" width="568" height="260" rx="16" fill="#334155" opacity="0.9" />
+      <rect x="130" y="270" width="508" height="160" rx="10" fill="#38bdf8" opacity="0.4" />
+      <!-- 천장 노란 손잡이 봉 -->
+      <line x1="120" y1="280" x2="648" y2="280" stroke="#facc15" stroke-width="12" stroke-linecap="round" />
+      <!-- 매달린 링 손잡이들 -->
+      <circle cx="220" cy="350" r="28" fill="none" stroke="#facc15" stroke-width="6" />
+      <circle cx="340" cy="350" r="28" fill="none" stroke="#facc15" stroke-width="6" />
+      <circle cx="460" cy="350" r="28" fill="none" stroke="#facc15" stroke-width="6" />
+      <circle cx="580" cy="350" r="28" fill="none" stroke="#facc15" stroke-width="6" />
+      <!-- 흔들림 / 충격 이펙트 광선 -->
+      <path d="M 280,500 L 484,700 M 484,500 L 280,700" stroke="#f43f5e" stroke-width="4" stroke-dasharray="10 8" />
+    `;
+  } else if (cut_index === 15 || cut_index === 16) {
+    // 컷 15, 16: 두 주인공의 마주침 & 사과
+    sceneIllustration = `
+      <!-- 두 인물의 대면 실루엣 -->
+      <!-- 왼쪽 남주인공 -->
+      <circle cx="260" cy="500" r="50" fill="#1e293b" />
+      <path d="M 210,550 L 310,550 L 320,720 L 200,720 Z" fill="#3b82f6" />
+      <!-- 오른쪽 여주인공 (사과하며 고개 숙임) -->
+      <circle cx="508" cy="520" r="48" fill="#1e293b" />
+      <path d="M 460,565 L 556,565 L 570,720 L 450,720 Z" fill="#ec4899" />
+      <!-- 두 사람 사이 반짝임 이펙트 -->
+      <circle cx="384" cy="510" r="16" fill="#fde047" opacity="0.9" />
+      <path d="M 384,480 L 384,540 M 354,510 L 414,510" stroke="#ffffff" stroke-width="3" />
+    `;
+  } else if (cut_index >= 17 && cut_index <= 19) {
+    // 컷 17-19: 미소, 대화, 정류장 동행
+    sceneIllustration = `
+      <!-- 부드러운 하트 & 음표 파티클 -->
+      <circle cx="384" cy="460" r="120" fill="#ffffff" opacity="0.2" />
+      <text x="240" y="420" font-size="36" fill="#ec4899">♪</text>
+      <text x="520" y="440" font-size="42" fill="#3b82f6">♬</text>
+      <!-- 나란히 서서 걷는 두 사람 -->
+      <circle cx="320" cy="520" r="42" fill="#1e293b" />
+      <path d="M 280,560 L 360,560 L 370,700 L 270,700 Z" fill="#3b82f6" />
+      <circle cx="448" cy="530" r="40" fill="#1e293b" />
+      <path d="M 410,570 L 486,570 L 496,700 L 400,700 Z" fill="#ec4899" />
+    `;
+  } else {
+    // 컷 20: 학교 정문과 희망찬 내일의 엔딩
+    sceneIllustration = `
+      <!-- 학교 교문 기둥 2개 -->
+      <rect x="180" y="380" width="55" height="300" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="4" />
+      <rect x="533" y="380" width="55" height="300" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="4" />
+      <!-- 학교 본관 원경 건물 -->
+      <rect x="270" y="320" width="228" height="200" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="4" />
+      <!-- 시계탑 -->
+      <circle cx="384" cy="380" r="28" fill="#ffffff" stroke="#3b82f6" stroke-width="4" />
+      <!-- 흩날리는 꽃잎 파티클 -->
+      <ellipse cx="280" cy="240" rx="12" ry="6" fill="#f472b6" transform="rotate(25 280 240)" />
+      <ellipse cx="480" cy="220" rx="12" ry="6" fill="#f472b6" transform="rotate(-30 480 220)" />
+      <ellipse cx="384" cy="200" rx="14" ry="7" fill="#f472b6" transform="rotate(15 384 200)" />
+    `;
+  }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
   <defs>
-    <!-- 배경 그라디언트 -->
-    <linearGradient id="${skyGradientId}" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="${skyTop}" />
-      <stop offset="55%" stop-color="${skyMid}" />
-      <stop offset="100%" stop-color="${skyBot}" />
+    <linearGradient id="bg_${cut_index}" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="${t.skyTop}" />
+      <stop offset="55%" stop-color="${t.skyMid}" />
+      <stop offset="100%" stop-color="${t.skyBot}" />
     </linearGradient>
-
-    <!-- 후광 빛 그라디언트 -->
-    <radialGradient id="sunbeam_${cut_index}" cx="50%" cy="35%" r="60%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.65" />
-      <stop offset="40%" stop-color="${theme.glow}" stop-opacity="0.35" />
-      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
-    </radialGradient>
-
-    <!-- 캐릭터 실루엣 그라디언트 -->
-    <linearGradient id="charGrad_${cut_index}" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b" />
-      <stop offset="50%" stop-color="#0f172a" />
-      <stop offset="100%" stop-color="#020617" />
-    </linearGradient>
-
-    <!-- 말풍선 그림자 필터 -->
     <filter id="shadow_${cut_index}" x="-10%" y="-10%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.35" />
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.35" />
     </filter>
   </defs>
 
   <!-- 배경 캔버스 -->
-  <rect width="${width}" height="${height}" fill="url(#${skyGradientId})" />
+  <rect width="${width}" height="${height}" fill="url(#bg_${cut_index})" />
 
-  <!-- 배경 분위기 광원/후광 -->
-  <circle cx="${charX}" cy="${charY - 140}" r="380" fill="url(#sunbeam_${cut_index})" />
+  <!-- 각 컷별 고유 장면 일러스트레이션 그래픽 -->
+  ${sceneIllustration}
 
-  <!-- 배경 일러스트 요소 (거리 / 건물 실루엣 또는 벚꽃 / 룬) -->
-  <g opacity="0.35">
-    <!-- 원경 건물 실루엣 -->
-    <rect x="60" y="420" width="110" height="380" fill="#0f172a" />
-    <rect x="200" y="360" width="130" height="440" fill="#1e293b" />
-    <rect x="450" y="390" width="120" height="410" fill="#0f172a" />
-    <rect x="600" y="450" width="110" height="350" fill="#1e293b" />
-
-    <!-- 건물 창문 불빛 -->
-    <circle cx="230" cy="400" r="3" fill="#fef08a" />
-    <circle cx="260" cy="400" r="3" fill="#fef08a" />
-    <circle cx="290" cy="400" r="3" fill="#fef08a" />
-    <circle cx="230" cy="440" r="3" fill="#fef08a" />
-    <circle cx="290" cy="440" r="3" fill="#fef08a" />
-    <circle cx="480" cy="420" r="3" fill="#fef08a" />
-    <circle cx="520" cy="420" r="3" fill="#fef08a" />
-  </g>
-
-  <!-- 가로등 빛 / 반짝이는 별빛 파티클 -->
-  <g opacity="0.7">
-    <circle cx="120" cy="180" r="2.5" fill="#ffffff" />
-    <circle cx="180" cy="120" r="2" fill="#ffffff" />
-    <circle cx="620" cy="160" r="3" fill="#ffffff" />
-    <circle cx="680" cy="220" r="2" fill="#ffffff" />
-    <circle cx="380" cy="90" r="2.5" fill="#ffffff" />
-    <circle cx="540" cy="280" r="1.5" fill="#ffffff" />
-    <!-- 반짝임 십자광 -->
-    <path d="M 620,152 L 620,168 M 612,160 L 628,160" stroke="#ffffff" stroke-width="1.2" />
-    <path d="M 120,172 L 120,188 M 112,180 L 128,180" stroke="#ffffff" stroke-width="1.2" />
-  </g>
-
-  <!-- 지면 / 바닥 언덕 실루엣 -->
-  <path d="M 0,720 Q 384,680 768,720 L 768,1024 L 0,1024 Z" fill="#020617" opacity="0.85" />
-
-  <!-- ════ 웹툰 주인공 캐릭터 일러스트 (정밀 실루엣 + 헤어 + 스타일) ════ -->
-  <g transform="translate(${charX}, ${charY})">
-    <!-- 캐릭터 발밑 그림자 -->
-    <ellipse cx="0" cy="240" rx="140" ry="24" fill="#000000" opacity="0.6" filter="url(#shadow_${cut_index})" />
-
-    <!-- 신체 의상 (오버사이즈 코트 / 재킷) -->
-    <path d="M -70,30 L -90,200 L 90,200 L 70,30 Q 0,45 -70,30 Z" fill="url(#charGrad_${cut_index})" />
-    <!-- 깃 / 칼라 디테일 -->
-    <path d="M -30,30 L 0,85 L 30,30 Q 0,38 -30,30 Z" fill="${theme.accent}" opacity="0.8" />
-    <path d="M -15,85 L 0,200 L 15,85 Z" stroke="#334155" stroke-width="2" fill="none" />
-
-    <!-- 어깨 및 팔 -->
-    <path d="M -70,30 Q -110,90 -95,180 Q -80,190 -65,180 Q -80,100 -50,45 Z" fill="url(#charGrad_${cut_index})" />
-    <path d="M 70,30 Q 110,90 95,180 Q 80,190 65,180 Q 80,100 50,45 Z" fill="url(#charGrad_${cut_index})" />
-
-    <!-- 목 -->
-    <rect x="-18" y="-10" width="36" height="42" fill="#fbcfe8" rx="4" />
-
-    <!-- 머리 / 얼굴 베이스 -->
-    <ellipse cx="0" cy="-60" rx="55" ry="65" fill="#fbcfe8" />
-    <!-- 턱선 쉐입 -->
-    <path d="M -50,-60 Q -45,-10 0,0 Q 45,-10 50,-60 Z" fill="#fbcfe8" />
-
-    <!-- 캐릭터 눈 (웹툰 스타일 또렷한 눈매) -->
-    <g>
-      <ellipse cx="-22" cy="-52" rx="10" ry="7" fill="#0f172a" />
-      <circle cx="-20" cy="-54" r="3.5" fill="#ffffff" />
-      <ellipse cx="22" cy="-52" rx="10" ry="7" fill="#0f172a" />
-      <circle cx="24" cy="-54" r="3.5" fill="#ffffff" />
-      <!-- 눈썹 -->
-      <path d="M -32,-65 Q -22,-70 -12,-65" stroke="#0f172a" stroke-width="3" stroke-linecap="round" fill="none" />
-      <path d="M 12,-65 Q 22,-70 32,-65" stroke="#0f172a" stroke-width="3" stroke-linecap="round" fill="none" />
-      <!-- 볼터치 -->
-      <ellipse cx="-32" cy="-40" rx="10" ry="4" fill="${theme.glow}" opacity="0.4" />
-      <ellipse cx="32" cy="-40" rx="10" ry="4" fill="${theme.glow}" opacity="0.4" />
-    </g>
-
-    <!-- 웹툰 헤어스타일 -->
-    ${isFemale ? `
-      <!-- 여성 헤어 (긴 생머리 + 앞머리) -->
-      <path d="M -60,-65 Q -65,30 -75,140 Q -50,150 -45,70 Q -50,-20 -40,-65 Z" fill="#18181b" />
-      <path d="M 60,-65 Q 65,30 75,140 Q 50,150 45,70 Q 50,-20 40,-65 Z" fill="#18181b" />
-      <path d="M -62,-65 Q 0,-135 62,-65 Q 45,-85 0,-85 Q -45,-85 -62,-65 Z" fill="#18181b" />
-      <!-- 앞머리 볼륨 및 엔젤링 광택 -->
-      <path d="M -45,-65 Q -30,-45 -20,-60 Q 0,-40 20,-60 Q 30,-45 45,-65 Z" fill="#27272a" />
-      <path d="M -35,-95 Q 0,-115 35,-95" stroke="${theme.accent}" stroke-width="4" stroke-linecap="round" opacity="0.75" fill="none" />
-    ` : `
-      <!-- 남성 헤어 (레이어드 컷 + 댄디 볼륨 뱅) -->
-      <path d="M -65,-55 Q -75,-125 0,-130 Q 75,-125 65,-55 Q 50,-80 30,-50 Q 15,-75 0,-48 Q -15,-75 -30,-50 Q -50,-80 -65,-55 Z" fill="#0f172a" />
-      <!-- 머리카락 결 및 입체 하이라이트 -->
-      <path d="M -50,-100 Q -30,-120 0,-122 Q 30,-120 50,-100" stroke="${theme.accent}" stroke-width="4" stroke-linecap="round" opacity="0.8" fill="none" />
-      <path d="M -35,-75 Q -20,-95 -5,-80" stroke="${theme.glow}" stroke-width="2.5" stroke-linecap="round" opacity="0.6" fill="none" />
-    `}
-  </g>
-
-  <!-- 효과음 (SFX 타이포그래피) -->
-  <g transform="translate(${isBubbleLeft ? width - 180 : 120}, 420) rotate(${cut_index % 2 === 0 ? -12 : 12})">
+  <!-- 효과음 (SFX 만화 타이포그래피) -->
+  <g transform="translate(${cut_index % 2 === 0 ? width - 180 : 160}, 360) rotate(${cut_index % 2 === 0 ? -10 : 10})">
     <text x="0" y="0" font-family="'Pretendard', 'Apple SD Gothic Neo', sans-serif" font-size="34" font-weight="900"
-      fill="${theme.accent}" stroke="#000000" stroke-width="6" paint-order="stroke fill" text-anchor="middle" letter-spacing="2">
-      ${sfx}
+      fill="${t.accent}" stroke="#ffffff" stroke-width="8" paint-order="stroke fill" text-anchor="middle" letter-spacing="2">
+      ${t.sfx}
     </text>
   </g>
 
-  <!-- ════ 상단 컷 정보 배지 및 제목 ════ -->
+  <!-- ════ 상단 컷 정보 뱃지 ════ -->
   <g transform="translate(32, 32)">
-    <!-- 컷 번호 캡슐 -->
-    <rect x="0" y="0" width="130" height="38" rx="19" fill="#000000" fill-opacity="0.75" />
+    <rect x="0" y="0" width="130" height="38" rx="19" fill="#0f172a" fill-opacity="0.8" />
     <text x="65" y="24" font-family="'Pretendard', sans-serif" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle">
       #${String(cut_index).padStart(2, '0')} ${esc(phase.slice(0, 1))}
     </text>
-
-    <!-- 구간 표시 레이블 -->
-    <rect x="140" y="0" width="160" height="38" rx="10" fill="${theme.top}" fill-opacity="0.85" stroke="${theme.accent}" stroke-width="1.5" />
-    <text x="220" y="24" font-family="'Pretendard', sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">
+    <rect x="140" y="0" width="170" height="38" rx="10" fill="${t.accent}" fill-opacity="0.9" />
+    <text x="225" y="24" font-family="'Pretendard', sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">
       ${esc(phase)}
     </text>
   </g>
 
   <!-- 장면 타이틀 바 -->
-  <g transform="translate(32, 85)">
-    <rect x="0" y="0" width="${width - 64}" height="46" rx="12" fill="#000000" fill-opacity="0.65" stroke="#334155" stroke-width="1" />
-    <text x="20" y="29" font-family="'Pretendard', sans-serif" font-size="16" font-weight="700" fill="#ffffff">
+  <g transform="translate(32, 82)">
+    <rect x="0" y="0" width="${width - 64}" height="44" rx="12" fill="#0f172a" fill-opacity="0.75" stroke="#334155" stroke-width="1" />
+    <text x="20" y="28" font-family="'Pretendard', sans-serif" font-size="15" font-weight="700" fill="#ffffff">
       ${cleanTitle}
     </text>
   </g>
 
-  <!-- ════ 웹툰 정통 한국어 말풍선 (이미지 내 합성) ════ -->
+  <!-- ════ 정통 웹툰 말풍선 (대사가 있을 때) ════ -->
   ${dialogue ? `
-  <g transform="translate(${bubbleX}, ${bubbleY})" filter="url(#shadow_${cut_index})">
-    <!-- 말풍선 본체 -->
-    <rect x="0" y="0" width="340" height="135" rx="24" fill="#ffffff" stroke="#0f172a" stroke-width="3.5" />
-
-    <!-- 말풍선 꼬리 (화자 방향으로 향함) -->
-    ${isBubbleLeft ? `
-      <polygon points="120,135 155,175 160,135" fill="#ffffff" stroke="#0f172a" stroke-width="3.5" />
-      <polygon points="121,133 154,173 159,133" fill="#ffffff" stroke="none" />
+  <g transform="translate(${cut_index % 2 === 0 ? 40 : width - 380}, ${height - 250})" filter="url(#shadow_${cut_index})">
+    <rect x="0" y="0" width="340" height="130" rx="22" fill="#ffffff" stroke="#0f172a" stroke-width="3" />
+    <!-- 꼬리 -->
+    ${cut_index % 2 === 0 ? `
+      <polygon points="120,130 155,168 160,130" fill="#ffffff" stroke="#0f172a" stroke-width="3" />
+      <polygon points="121,128 154,166 159,128" fill="#ffffff" stroke="none" />
     ` : `
-      <polygon points="220,135 245,175 190,135" fill="#ffffff" stroke="#0f172a" stroke-width="3.5" />
-      <polygon points="219,133 244,173 191,133" fill="#ffffff" stroke="none" />
+      <polygon points="220,130 245,168 190,130" fill="#ffffff" stroke="#0f172a" stroke-width="3" />
+      <polygon points="219,128 244,166 191,128" fill="#ffffff" stroke="none" />
     `}
-
-    <!-- 화자 이름 태그 -->
-    <rect x="18" y="14" width="90" height="26" rx="8" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1.5" />
-    <text x="63" y="32" font-family="'Pretendard', sans-serif" font-size="12" font-weight="800" fill="#4f46e5" text-anchor="middle">
+    <rect x="18" y="14" width="90" height="24" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.2" />
+    <text x="63" y="31" font-family="'Pretendard', sans-serif" font-size="12" font-weight="800" fill="#2563eb" text-anchor="middle">
       💬 ${cleanSpeaker}
     </text>
-
-    <!-- 대사 본문 (자동 2줄 처리) -->
-    <text x="20" y="68" font-family="'Pretendard', 'Apple SD Gothic Neo', sans-serif" font-size="15" font-weight="700" fill="#0f172a">
+    <text x="20" y="66" font-family="'Pretendard', sans-serif" font-size="15" font-weight="700" fill="#0f172a">
       "${cleanDialogue.slice(0, 24)}"
     </text>
     ${cleanDialogue.length > 24 ? `
-    <text x="20" y="94" font-family="'Pretendard', 'Apple SD Gothic Neo', sans-serif" font-size="15" font-weight="700" fill="#0f172a">
+    <text x="20" y="92" font-family="'Pretendard', sans-serif" font-size="15" font-weight="700" fill="#0f172a">
       ${cleanDialogue.slice(24, 52)}${cleanDialogue.length > 52 ? '...' : ''}"
     </text>` : ''}
-  </g>
-  ` : ''}
+  </g>` : ''}
 
-  <!-- 하단 해설 / 나레이션 캡션 바 -->
+  <!-- 하단 해설 캡션 바 -->
   ${cleanSummary ? `
-  <g transform="translate(32, ${height - 75})">
-    <rect x="0" y="0" width="${width - 64}" height="45" rx="10" fill="#000000" fill-opacity="0.75" stroke="#1e293b" stroke-width="1" />
-    <text x="20" y="28" font-family="'Pretendard', sans-serif" font-size="13" font-weight="500" fill="#cbd5e1">
+  <g transform="translate(32, ${height - 70})">
+    <rect x="0" y="0" width="${width - 64}" height="42" rx="10" fill="#0f172a" fill-opacity="0.8" />
+    <text x="20" y="26" font-family="'Pretendard', sans-serif" font-size="13" font-weight="500" fill="#e2e8f0">
       ${cleanSummary}
     </text>
-  </g>
-  ` : ''}
+  </g>` : ''}
 
-  <!-- 웹툰 패널 외곽선 테두리 -->
+  <!-- 외곽선 테두리 -->
   <rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="#000000" stroke-width="6" />
-  <rect x="3" y="3" width="${width - 6}" height="${height - 6}" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.4" />
 </svg>`;
 }
 

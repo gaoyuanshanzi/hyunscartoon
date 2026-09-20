@@ -13,6 +13,7 @@ export interface CutData {
   speaker: string;
   scene_summary: string;
   image_url: string;
+  fallback_url?: string;
 }
 
 interface Props {
