@@ -12,33 +12,39 @@ export interface WebtoonCutInput {
 
 // 20개 각 컷별 고유 배경 및 캐릭터 포즈 렌더러
 export function generateWebtoonCutSvg(cut: WebtoonCutInput): string {
-  const { cut_index, phase, scene_title, scene_summary, speaker, dialogue } = cut;
+  const { cut_index, phase, scene_title, scene_summary, speaker, dialogue, genre = 'drama' } = cut;
 
   const width = 768;
   const height = 1024;
 
+  // 장르 및 내용 기반 테마 색상 설정
+  const isCafe = /카페|커피|바리스타|머그|잔/i.test(scene_summary + scene_title);
+  const isMagic = /마법|탑|마법사|지팡이|룬|주문/i.test(scene_summary + scene_title) || genre === 'fantasy';
+  const isRain = /비|빗방울|우산|소나기/i.test(scene_summary + scene_title);
+  const isBook = /책|소설|도서관|독서|글/i.test(scene_summary + scene_title);
+
   // 20개 컷별 고유 색상 및 분위기 팔레트
   const sceneThemes = [
-    { bg: '#FFF8E7', sky: '#87CEEB', mid: '#B0D4F1', dark: '#2C3E50', accent: '#FF9500', sfx: '햇살 쏟아짐!' },
+    { bg: isCafe ? '#FFF8E7' : isMagic ? '#1A1438' : '#FFF8E7', sky: isCafe ? '#E2B888' : isMagic ? '#4B2A80' : '#87CEEB', mid: '#B0D4F1', dark: '#2C3E50', accent: isMagic ? '#A855F7' : '#FF9500', sfx: isCafe ? '따스한 향기~' : isMagic ? '신비로운 빛!' : '햇살 쏟아짐!' },
     { bg: '#E8F4FD', sky: '#6DB3F2', mid: '#A8D8F0', dark: '#1A2B45', accent: '#3498DB', sfx: '기지개~ 쭉!' },
-    { bg: '#F0F8F0', sky: '#90EE90', mid: '#B8E4B8', dark: '#2D4A2D', accent: '#27AE60', sfx: '어라...?' },
-    { bg: '#FFF0F5', sky: '#FFB6C1', mid: '#FFCDD7', dark: '#4A1A2D', accent: '#E91E8C', sfx: '출발이다!' },
-    { bg: '#FFFAEB', sky: '#FFD700', mid: '#FFE55C', dark: '#5C4000', accent: '#F39C12', sfx: '보글보글~' },
+    { bg: isRain ? '#E8EEF5' : '#F0F8F0', sky: isRain ? '#64748B' : '#90EE90', mid: '#B8E4B8', dark: '#2D4A2D', accent: isRain ? '#0284C7' : '#27AE60', sfx: isRain ? '주룩주룩...' : '어라...?' },
+    { bg: isBook ? '#FDF8F0' : '#FFF0F5', sky: isBook ? '#D4A373' : '#FFB6C1', mid: '#FFCDD7', dark: '#4A1A2D', accent: isBook ? '#8B5A2B' : '#E91E8C', sfx: isBook ? '사각사각...' : '출발이다!' },
+    { bg: isCafe ? '#FFF5EB' : '#FFFAEB', sky: '#FFD700', mid: '#FFE55C', dark: '#5C4000', accent: '#F39C12', sfx: isCafe ? '모락모락~' : '보글보글~' },
     { bg: '#FEF0F0', sky: '#FF8FA3', mid: '#FFAABB', dark: '#4A0015', accent: '#E91E63', sfx: '맛있다!' },
-    { bg: '#F0FAFF', sky: '#56CCF2', mid: '#9BDEF5', dark: '#0A2C3A', accent: '#2980B9', sfx: '찰칵!' },
+    { bg: isRain ? '#DDE5ED' : '#F0FAFF', sky: isRain ? '#475569' : '#56CCF2', mid: '#9BDEF5', dark: '#0A2C3A', accent: '#2980B9', sfx: isRain ? '빗소리와 함께' : '찰칵!' },
     { bg: '#F0FFF4', sky: '#52E07C', mid: '#8FEBA8', dark: '#0D3A1E', accent: '#16A085', sfx: '또각또각!' },
-    { bg: '#EEF6FF', sky: '#78B5F5', mid: '#A8CFF8', dark: '#122A55', accent: '#1565C0', sfx: '시계를 확인!' },
-    { bg: '#FFFBEE', sky: '#FFBE00', mid: '#FFD655', dark: '#4A3000', accent: '#E67E22', sfx: '부르릉~!' },
-    { bg: '#1C2B3A', sky: '#2C3E50', mid: '#34495E', dark: '#0A111A', accent: '#48C9B0', sfx: '덜컹덜컹...' },
-    { bg: '#2D1B00', sky: '#6B3700', mid: '#A05200', dark: '#1A0C00', accent: '#FF6B00', sfx: '끼이익—!!' },
-    { bg: '#3D0020', sky: '#800040', mid: '#C00060', dark: '#1E0010', accent: '#FF2D78', sfx: '쿵!! 앗!' },
-    { bg: '#200040', sky: '#4B0082', mid: '#7B00C8', dark: '#100020', accent: '#CC44FF', sfx: '화들짝!!' },
-    { bg: '#0D0A2E', sky: '#1A1460', mid: '#2A1E99', dark: '#050318', accent: '#7C4DFF', sfx: '두근...두근...' },
-    { bg: '#FFF0F8', sky: '#FF69B4', mid: '#FFB3D9', dark: '#4A0030', accent: '#E91E8C', sfx: '죄송해요!!' },
+    { bg: isCafe ? '#FFF8F0' : '#EEF6FF', sky: '#78B5F5', mid: '#A8CFF8', dark: '#122A55', accent: '#1565C0', sfx: '시선을 돌리며' },
+    { bg: isMagic ? '#24103A' : '#FFFBEE', sky: '#FFBE00', mid: '#FFD655', dark: '#4A3000', accent: '#E67E22', sfx: isMagic ? '신비로운 울림' : '부르릉~!' },
+    { bg: '#1C2B3A', sky: '#2C3E50', mid: '#34495E', dark: '#0A111A', accent: '#48C9B0', sfx: '적막 속에서...' },
+    { bg: '#2D1B00', sky: '#6B3700', mid: '#A05200', dark: '#1A0C00', accent: '#FF6B00', sfx: '갑작스러운 변화!' },
+    { bg: '#3D0020', sky: '#800040', mid: '#C00060', dark: '#1E0010', accent: '#FF2D78', sfx: '쿵!!' },
+    { bg: isMagic ? '#3B0764' : '#200040', sky: '#4B0082', mid: '#7B00C8', dark: '#100020', accent: '#CC44FF', sfx: '화들짝!!' },
+    { bg: isMagic ? '#1E1035' : '#0D0A2E', sky: '#1A1460', mid: '#2A1E99', dark: '#050318', accent: '#7C4DFF', sfx: '두근...두근...' },
+    { bg: '#FFF0F8', sky: '#FF69B4', mid: '#FFB3D9', dark: '#4A0030', accent: '#E91E8C', sfx: '진심을 담아' },
     { bg: '#F0FBFF', sky: '#00BCD4', mid: '#70D8EC', dark: '#003C4A', accent: '#0097A7', sfx: '괜찮아요 ^^' },
-    { bg: '#FFF5F8', sky: '#FF80AB', mid: '#FFAAC4', dark: '#4A1030', accent: '#F06292', sfx: '소곤소곤~' },
-    { bg: '#F5F0FF', sky: '#9C27B0', mid: '#CE93D8', dark: '#2E0050', accent: '#7B1FA2', sfx: '같이 내리자!' },
-    { bg: '#FFFDE7', sky: '#FFC107', mid: '#FFE082', dark: '#4A3800', accent: '#FF8F00', sfx: '새로운 시작!' },
+    { bg: isBook ? '#FFF8F2' : '#FFF5F8', sky: '#FF80AB', mid: '#FFAAC4', dark: '#4A1030', accent: '#F06292', sfx: isBook ? '건네받은 책' : '소곤소곤~' },
+    { bg: '#F5F0FF', sky: '#9C27B0', mid: '#CE93D8', dark: '#2E0050', accent: '#7B1FA2', sfx: '함께 나누는 순간' },
+    { bg: isMagic ? '#2E1065' : '#FFFDE7', sky: '#FFC107', mid: '#FFE082', dark: '#4A3800', accent: '#FF8F00', sfx: '새로운 시작!' },
   ];
 
   const t = sceneThemes[(cut_index - 1) % sceneThemes.length];

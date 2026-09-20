@@ -10,9 +10,11 @@ export interface CutData {
   cut_index: number;
   scene_title: string;
   phase: string;
+  phase_code?: string;
   dialogue: string;
   speaker: string;
   scene_summary: string;
+  camera_angle?: string;
   image_url: string;
   fallback_url?: string;
 }
