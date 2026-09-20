@@ -4,6 +4,7 @@ import os
 import sys
 import uuid
 import time
+import urllib.parse
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -161,7 +162,13 @@ async def generate_stream(story: str, genre: str = "drama", session_token: str =
 
                 pct = 5 + int((cut_index / total) * 90)
                 cut_idx_padded = str(cut_data["cut_index"]).zfill(2)
-                rel_path = f"/outputs/{session_id}/cut_{cut_idx_padded}_bubble.png"
+
+                # Vercel 클라우드 서버리스 환경에서도 항상 이미지가 보이도록 Pollinations 직접 URL 생성
+                prompt_text = cut_data.get("consistent_prompt_en", cut_data.get("visual_prompt_en", "korean manhwa webtoon scene"))
+                clean_prompt = "".join(c for c in prompt_text if c.isalnum() or c in " ,.-_")[:280]
+                encoded_prompt = urllib.parse.quote(clean_prompt)
+                seed_val = cut_data.get("seed", 42)
+                cloud_img_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=1024&model=flux&nologo=true&seed={seed_val}"
 
                 payload = {
                     "type": "cut_done",
@@ -176,7 +183,7 @@ async def generate_stream(story: str, genre: str = "drama", session_token: str =
                         "dialogue": cut_data["dialogue"],
                         "speaker": cut_data["speaker"],
                         "scene_summary": cut_data["scene_summary"],
-                        "image_url": rel_path
+                        "image_url": cloud_img_url
                     }
                 }
                 completed_cuts.append(payload["cut_data"])

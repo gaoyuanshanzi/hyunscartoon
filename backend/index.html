@@ -375,7 +375,7 @@
 
             const tBox = document.getElementById('thumb-' + data.cut_index);
             if (tBox && data.cut_data.image_url) {
-              tBox.innerHTML = `<img src="${data.cut_data.image_url}" class="w-full h-full object-cover rounded-lg">`;
+              tBox.innerHTML = `<img src="${data.cut_data.image_url}" class="w-full h-full object-cover rounded-lg" onerror="this.onerror=null; this.src='https://placehold.co/100x133/e2e8f0/64748b?text=%23${data.cut_index}';">`;
             }
           } else if (data.type === 'complete') {
             updateProgress(100);
@@ -411,20 +411,42 @@
       container.innerHTML = '';
       completedCuts.sort((a, b) => a.cut_index - b.cut_index).forEach(cut => {
         const item = document.createElement('div');
-        item.className = 'webtoon-panel relative';
+        item.className = 'webtoon-panel relative bg-white';
+
+        // 컷 이미지와 오버레이 말풍선 렌더링
         item.innerHTML = `
-          <div class="relative">
-            <img src="${cut.image_url}" alt="${cut.scene_title}" loading="lazy" class="w-full h-auto block">
-            <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-lg font-mono">
+          <div class="relative bg-gray-100 min-h-[500px] overflow-hidden">
+            <img src="${cut.image_url}" alt="${cut.scene_title}" loading="lazy" 
+              class="w-full h-auto block min-h-[500px] object-cover"
+              onerror="this.onerror=null; this.src='https://placehold.co/768x1024/f1f5f9/475569?text=' + encodeURIComponent('컷 #' + '${cut.cut_index}' + ' ' + '${cut.scene_title}');">
+            
+            <!-- 컷 번호 뱃지 -->
+            <div class="absolute top-4 left-4 bg-black/70 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-xl font-mono shadow-md">
               #${String(cut.cut_index).padStart(2, '0')} ${cut.phase || ''}
             </div>
+
+            <!-- 웹툰 스타일 말풍선 오버레이 (이미지 위 직접 표시) -->
+            ${cut.dialogue ? `
+              <div class="absolute bottom-8 right-6 max-w-[75%] bg-white/95 backdrop-blur-sm border-2 border-gray-900 px-5 py-3.5 rounded-2xl shadow-2xl">
+                <div class="text-xs font-bold text-indigo-600 mb-1 flex items-center gap-1">
+                  💬 ${cut.speaker || '주인공'}
+                </div>
+                <div class="text-sm font-semibold text-gray-900 leading-snug tracking-tight">
+                  "${cut.dialogue}"
+                </div>
+              </div>
+            ` : ''}
           </div>
-          <div class="p-4 bg-white border-t border-gray-100 flex items-start justify-between gap-3">
+
+          <!-- 하단 해설 정보 바 -->
+          <div class="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
             <div>
-              <h4 class="text-xs font-bold text-gray-700">${cut.scene_title || ''}</h4>
+              <span class="text-xs font-bold text-gray-800">${cut.scene_title || ''}</span>
               <p class="text-xs text-gray-500 mt-0.5">${cut.scene_summary || ''}</p>
             </div>
-            ${cut.dialogue ? `<div class="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs px-3 py-1.5 rounded-lg max-w-[220px]">"${cut.dialogue}"</div>` : ''}
+            <a href="${cut.image_url}" target="_blank" download="cut_${cut.cut_index}.png" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+              원본 다운로드 ↗
+            </a>
           </div>
         `;
         container.appendChild(item);
