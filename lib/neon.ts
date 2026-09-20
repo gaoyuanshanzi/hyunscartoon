@@ -123,3 +123,114 @@ export async function saveNeonExportHtml(sessionId: string, html: string): Promi
     return false;
   }
 }
+
+// ──────────────────────────────────────────────
+// 라이브러리 사이드바용 함수들
+// ──────────────────────────────────────────────
+
+export interface SessionSummary {
+  session_id: string;
+  title: string;
+  genre: string;
+  story: string;
+  created_at: string;
+  cut_count: number;
+  has_export: boolean;
+}
+
+export interface SessionDetail extends SessionSummary {
+  export_html: string | null;
+  cuts: CutDetail[];
+}
+
+export interface CutDetail {
+  cut_index: number;
+  phase: string;
+  scene_title: string;
+  dialogue: string;
+  speaker: string;
+  scene_summary: string;
+  image_url: string;
+}
+
+/** 전체 세션 목록 조회 (컷 수 포함) */
+export async function getAllSessions(): Promise<SessionSummary[]> {
+  await initNeonDb();
+  const sql = getNeonSql();
+  const rows = await sql.query(`
+    SELECT
+      s.session_id,
+      s.title,
+      s.genre,
+      s.story,
+      s.created_at,
+      s.export_html IS NOT NULL AND s.export_html != '' AS has_export,
+      COUNT(c.id)::int AS cut_count
+    FROM webtoon_sessions s
+    LEFT JOIN webtoon_cuts c ON c.session_id = s.session_id
+    GROUP BY s.session_id, s.title, s.genre, s.story, s.created_at, s.export_html
+    ORDER BY s.created_at DESC
+    LIMIT 100
+  `);
+  return (rows as any[]).map((r: any) => ({
+    session_id: r.session_id,
+    title: r.title || '(제목 없음)',
+    genre: r.genre || 'drama',
+    story: r.story || '',
+    created_at: r.created_at,
+    cut_count: Number(r.cut_count) || 0,
+    has_export: r.has_export === true || r.has_export === 't',
+  }));
+}
+
+/** 특정 세션 + 컷 전체 조회 */
+export async function getSessionWithCuts(sessionId: string): Promise<SessionDetail | null> {
+  await initNeonDb();
+  const sql = getNeonSql();
+  const sessRows = await sql.query(
+    `SELECT * FROM webtoon_sessions WHERE session_id = $1 LIMIT 1`,
+    [sessionId]
+  );
+  if (!sessRows || (sessRows as any[]).length === 0) return null;
+  const s = (sessRows as any[])[0];
+
+  const cutRows = await sql.query(
+    `SELECT * FROM webtoon_cuts WHERE session_id = $1 ORDER BY cut_index ASC`,
+    [sessionId]
+  );
+
+  return {
+    session_id: s.session_id,
+    title: s.title || '(제목 없음)',
+    genre: s.genre || 'drama',
+    story: s.story || '',
+    created_at: s.created_at,
+    cut_count: (cutRows as any[]).length,
+    has_export: !!(s.export_html),
+    export_html: s.export_html || null,
+    cuts: (cutRows as any[]).map((c: any) => ({
+      cut_index: c.cut_index,
+      phase: c.phase || '',
+      scene_title: c.scene_title || '',
+      dialogue: c.dialogue || '',
+      speaker: c.speaker || '',
+      scene_summary: c.scene_summary || '',
+      image_url: c.image_url || '',
+    })),
+  };
+}
+
+/** 세션 + 관련 컷 완전 삭제 */
+export async function deleteSession(sessionId: string): Promise<boolean> {
+  try {
+    await initNeonDb();
+    const sql = getNeonSql();
+    await sql.query(`DELETE FROM webtoon_cuts WHERE session_id = $1`, [sessionId]);
+    await sql.query(`DELETE FROM webtoon_sessions WHERE session_id = $1`, [sessionId]);
+    return true;
+  } catch (err) {
+    console.error('[Neon] Error deleting session:', err);
+    return false;
+  }
+}
+
