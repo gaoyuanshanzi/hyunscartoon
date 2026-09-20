@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>웹툰 자동 생성기 – Hyun's Cartoon Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+  <style>
+    body { font-family: 'Pretendard', sans-serif; }
+    .webtoon-panel { border-bottom: 2px solid #e2e8f0; }
+    .webtoon-panel img { width: 100%; height: auto; display: block; }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .progress-shimmer {
+      background: linear-gradient(90deg, #3b82f6 25%, #6366f1 50%, #8b5cf6 75%);
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900">
+
+  <!-- 1. 로그인 뷰 -->
+  <div id="loginView" class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+    <div class="relative w-full max-w-md">
+      <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-10 text-center text-white">
+          <div class="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-2xl mb-3 text-2xl backdrop-blur-sm">
+            📖
+          </div>
+          <h1 class="text-2xl font-bold mb-1">웹툰 스튜디오</h1>
+          <p className="text-indigo-200 text-sm">AI 자동 웹툰 생성 플랫폼</p>
+        </div>
+
+        <div class="px-8 py-8">
+          <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-1">관리자 로그인</h2>
+            <p class="text-sm text-gray-500">장문 스토리를 20컷 웹툰으로 변환하세요</p>
+          </div>
+
+          <form id="loginForm" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">관리자 ID</label>
+              <input id="loginId" type="text" placeholder="아이디를 입력하세요 (admin)" required
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-indigo-500 outline-none transition" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">비밀번호</label>
+              <input id="loginPw" type="password" placeholder="비밀번호를 입력하세요 (123jesus)" required
+                class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-indigo-500 outline-none transition" />
+            </div>
+
+            <div id="loginError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5"></div>
+
+            <button type="submit" id="loginBtn"
+              class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition shadow-md hover:shadow-lg mt-2 flex items-center justify-center gap-2">
+              로그인 →
+            </button>
+          </form>
+        </div>
+      </div>
+      <p class="text-center text-xs text-gray-400 mt-6">Hyun's Cartoon Studio · AI 웹툰 자동 생성기 v1.0</p>
+    </div>
+  </div>
+
+  <!-- 2. 메인 스튜디오 뷰 -->
+  <div id="studioView" class="hidden min-h-screen bg-gray-50">
+    <!-- 헤더 -->
+    <header class="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg shadow-sm">
+            🎨
+          </div>
+          <div>
+            <h1 class="text-base font-bold text-gray-900 leading-tight">웹툰 스튜디오</h1>
+            <p class="text-xs text-gray-400 leading-tight">AI 자동 20컷 웹툰 생성기</p>
+          </div>
+        </div>
+
+        <div class="flex bg-gray-100 rounded-xl p-1 gap-1">
+          <button id="tabStudio" class="px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm">
+            ✨ 스튜디오
+          </button>
+          <button id="tabViewer" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700">
+            📖 뷰어 (<span id="viewerCount">0</span>컷)
+          </button>
+        </div>
+
+        <button id="logoutBtn" class="text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-lg transition">
+          로그아웃
+        </button>
+      </div>
+    </header>
+
+    <!-- 스튜디오 패널 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div id="panelStudio" class="space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-1">✍️ 웹툰 스토리 입력</h2>
+          <p class="text-gray-500 text-sm">A4 반장~한 장 분량의 스토리를 입력하면 20컷 웹툰으로 완전 자동 생성됩니다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-4">
+            <!-- 장르 선택 -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 class="text-sm font-semibold text-gray-700 mb-3">🎨 웹툰 장르 선택</h3>
+              <div class="grid grid-cols-5 gap-2" id="genreGroup">
+                <button type="button" data-genre="drama" class="genre-btn flex flex-col items-center p-3 rounded-xl border-2 border-indigo-400 bg-indigo-50 text-indigo-700 text-center">
+                  <span class="text-lg mb-0.5">🎭</span><span class="text-xs font-medium">드라마</span>
+                </button>
+                <button type="button" data-genre="romance" class="genre-btn flex flex-col items-center p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-gray-600 text-center hover:border-gray-200">
+                  <span class="text-lg mb-0.5">💕</span><span class="text-xs font-medium">로맨스</span>
+                </button>
+                <button type="button" data-genre="fantasy" class="genre-btn flex flex-col items-center p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-gray-600 text-center hover:border-gray-200">
+                  <span class="text-lg mb-0.5">⚔️</span><span class="text-xs font-medium">판타지</span>
+                </button>
+                <button type="button" data-genre="thriller" class="genre-btn flex flex-col items-center p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-gray-600 text-center hover:border-gray-200">
+                  <span class="text-lg mb-0.5">🔍</span><span class="text-xs font-medium">스릴러</span>
+                </button>
+                <button type="button" data-genre="action" class="genre-btn flex flex-col items-center p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-gray-600 text-center hover:border-gray-200">
+                  <span class="text-lg mb-0.5">💥</span><span class="text-xs font-medium">액션</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 스토리 본문 -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-700">📝 스토리 본문</h3>
+                <button id="btnSample" type="button" class="text-xs text-indigo-600 hover:underline">
+                  💡 예시 스토리 불러오기
+                </button>
+              </div>
+              <textarea id="storyInput" rows="11" placeholder="여기에 A4 반장~한 장 분량의 스토리를 자유롭게 입력하세요...&#10;&#10;예시: 서울 홍대 골목의 작은 카페 '별빛'을 운영하는 28살 민우는 매일 아침 7시에 문을 열고 혼자 모든 일을 해낸다. 어느 날 비를 피해 들어온 낯선 여자 지아가 카페에서 3시간 동안 노트북을 두드리며 소설을 썼다..."
+                class="w-full p-4 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none resize-none leading-relaxed"></textarea>
+              <div class="flex justify-between items-center text-xs text-gray-400 mt-2">
+                <span id="charCounter">0자</span>
+                <button type="button" id="btnClear" class="text-gray-400 hover:text-red-500">지우기</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 컨트롤 및 진행 상황 -->
+          <div class="space-y-4">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 class="text-sm font-semibold text-gray-700 mb-4">🚀 웹툰 생성</h3>
+              <button id="btnGenerate" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 rounded-xl shadow-md hover:shadow-lg transition text-sm flex items-center justify-center gap-2">
+                ✨ 20컷 웹툰 자동 생성
+              </button>
+              <div id="actionPostComplete" class="hidden mt-3 space-y-2">
+                <button id="btnGoViewer" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-3 rounded-xl border border-indigo-200 transition text-sm">
+                  📖 웹툰 감상하기
+                </button>
+              </div>
+            </div>
+
+            <!-- 진행률 카드 -->
+            <div id="cardProgress" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-700">📊 생성 진행률</h3>
+                <span id="txtPercent" class="text-sm font-bold text-indigo-600">0%</span>
+              </div>
+              <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden mb-3">
+                <div id="barProgress" class="h-full rounded-full progress-shimmer transition-all duration-300" style="width: 0%"></div>
+              </div>
+              <p id="txtStatus" class="text-xs text-gray-600 leading-relaxed">준비 중...</p>
+            </div>
+
+            <!-- 실시간 썸네일 그리드 -->
+            <div id="cardThumbnails" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-gray-700">🎬 생성된 컷</h3>
+                <span id="txtThumbCount" class="text-xs text-gray-400 font-medium">0 / 20</span>
+              </div>
+              <div class="grid grid-cols-4 gap-1.5" id="thumbGrid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 뷰어 패널 -->
+      <div id="panelViewer" class="hidden space-y-4">
+        <div class="flex items-center justify-between">
+          <button id="btnBackToStudio" class="text-sm text-gray-600 hover:text-gray-900 bg-white border border-gray-200 px-3 py-2 rounded-xl transition">
+            ← 스튜디오로 돌아가기
+          </button>
+          <div class="text-center">
+            <h2 id="viewerTitle" class="text-lg font-bold text-gray-900">웹툰 감상</h2>
+            <p id="viewerSub" class="text-xs text-gray-400">20컷 · 세로 스크롤 뷰어</p>
+          </div>
+          <div></div>
+        </div>
+
+        <div class="flex justify-center">
+          <div class="w-full max-w-[800px] bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden" id="webtoonContainer">
+            <div class="bg-gradient-to-r from-gray-900 to-gray-800 text-white text-center py-6 px-4">
+              <div class="text-xs text-gray-400 mb-1 tracking-widest uppercase">AI 자동 생성 웹툰</div>
+              <h1 id="bannerTitle" class="text-xl font-bold">웹툰</h1>
+              <div class="text-xs text-gray-400 mt-2">총 20컷 · 한국어 말풍선 합성</div>
+            </div>
+            <div id="cutsList" class="bg-white"></div>
+            <div class="bg-gray-900 text-white text-center py-8 px-4">
+              <div class="text-3xl mb-2">🎉</div>
+              <p class="text-base font-bold mb-1">— 끝 —</p>
+              <p class="text-xs text-gray-400">Hyun's Cartoon Studio · Powered by FLUX AI</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let token = sessionStorage.getItem('webtoon_token') || '';
+    let selectedGenre = 'drama';
+    let completedCuts = [];
+    let eventSource = null;
+
+    // 초기 화면 상태
+    if (token) {
+      showStudio();
+    } else {
+      showLogin();
+    }
+
+    function showLogin() {
+      document.getElementById('loginView').classList.remove('hidden');
+      document.getElementById('studioView').classList.add('hidden');
+    }
+
+    function showStudio() {
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('studioView').classList.remove('hidden');
+    }
+
+    // 로그인
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('loginId').value.trim();
+      const pw = document.getElementById('loginPw').value;
+      const errBox = document.getElementById('loginError');
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: id, password: pw })
+        });
+        const data = await res.json();
+        if (res.ok && data.token) {
+          token = data.token;
+          sessionStorage.setItem('webtoon_token', token);
+          showStudio();
+        } else {
+          errBox.textContent = data.detail || '로그인 실패. 다시 확인해 주세요.';
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.textContent = '서버 연결 실패';
+        errBox.classList.remove('hidden');
+      }
+    });
+
+    // 로그아웃
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      token = '';
+      sessionStorage.removeItem('webtoon_token');
+      showLogin();
+    });
+
+    // 장르 선택
+    document.querySelectorAll('.genre-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.genre-btn').forEach(b => {
+          b.className = 'genre-btn flex flex-col items-center p-3 rounded-xl border-2 border-gray-100 bg-gray-50 text-gray-600 text-center hover:border-gray-200';
+        });
+        btn.className = 'genre-btn flex flex-col items-center p-3 rounded-xl border-2 border-indigo-400 bg-indigo-50 text-indigo-700 text-center';
+        selectedGenre = btn.dataset.genre;
+      });
+    });
+
+    // 글자 수 카운터
+    const storyInput = document.getElementById('storyInput');
+    storyInput.addEventListener('input', () => {
+      document.getElementById('charCounter').textContent = storyInput.value.length + '자';
+    });
+
+    document.getElementById('btnClear').addEventListener('click', () => {
+      storyInput.value = '';
+      document.getElementById('charCounter').textContent = '0자';
+    });
+
+    // 예시 스토리 불러오기
+    document.getElementById('btnSample').addEventListener('click', () => {
+      storyInput.value = `서울 홍대 골목의 작은 카페 '별빛'을 운영하는 28살 민우는 매일 아침 7시에 문을 열고 혼자 모든 일을 해낸다. 어느 날, 비를 피해 들어온 낯선 여자 지아가 카페에서 3시간 동안 노트북을 두드리며 소설을 썼다. 민우는 그녀의 커피잔이 빌 때마다 말없이 채워줬고, 지아는 고개 들어 미소를 지었다. 그것이 전부였다. 다음 날도, 그 다음 날도 지아는 같은 자리에 앉아 같은 시간을 보냈다. 어느 월요일 아침, 지아가 나타나지 않았다. 민우는 처음으로 카페 안이 이렇게 넓었다는 것을 알았다. 일주일이 지나 지아가 돌아왔을 때, 그녀의 손에는 두 권의 책이 있었다. 하나는 자신이 쓴 소설, 다른 하나는 선물. 민우는 그 책을 받아들고, 처음으로 먼저 말을 건넸다. "드시는 것 좀 시켜도 되겠어요? 오늘은 제가 직접 서빙하고 싶거든요."`;
+      document.getElementById('charCounter').textContent = storyInput.value.length + '자';
+    });
+
+    // 탭 전환
+    document.getElementById('tabStudio').addEventListener('click', () => {
+      document.getElementById('panelStudio').classList.remove('hidden');
+      document.getElementById('panelViewer').classList.add('hidden');
+      document.getElementById('tabStudio').className = 'px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm';
+      document.getElementById('tabViewer').className = 'px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700';
+    });
+
+    function openViewer() {
+      document.getElementById('panelStudio').classList.add('hidden');
+      document.getElementById('panelViewer').classList.remove('hidden');
+      document.getElementById('tabViewer').className = 'px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm';
+      document.getElementById('tabStudio').className = 'px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700';
+      renderViewer();
+    }
+
+    document.getElementById('tabViewer').addEventListener('click', openViewer);
+    document.getElementById('btnGoViewer').addEventListener('click', openViewer);
+    document.getElementById('btnBackToStudio').addEventListener('click', () => {
+      document.getElementById('tabStudio').click();
+    });
+
+    // 웹툰 생성 실행
+    document.getElementById('btnGenerate').addEventListener('click', () => {
+      const story = storyInput.value.trim();
+      if (!story || story.length < 30) {
+        alert('스토리를 최소 30자 이상 입력해 주세요.');
+        return;
+      }
+
+      completedCuts = [];
+      document.getElementById('cardProgress').classList.remove('hidden');
+      document.getElementById('cardThumbnails').classList.remove('hidden');
+      document.getElementById('actionPostComplete').classList.add('hidden');
+      document.getElementById('btnGenerate').disabled = true;
+      document.getElementById('btnGenerate').textContent = '⏳ 생성 진행 중...';
+
+      // 썸네일 그리드 초기화
+      const grid = document.getElementById('thumbGrid');
+      grid.innerHTML = '';
+      for (let i = 1; i <= 20; i++) {
+        const d = document.createElement('div');
+        d.id = 'thumb-' + i;
+        d.className = 'aspect-[3/4] rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-400 font-mono';
+        d.textContent = '#' + i;
+        grid.appendChild(d);
+      }
+
+      const params = new URLSearchParams({
+        story: story,
+        genre: selectedGenre,
+        session_token: token
+      });
+
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource('/api/generate-stream?' + params.toString());
+
+      eventSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'status') {
+            document.getElementById('txtStatus').textContent = data.message;
+            updateProgress(data.progress || 5);
+          } else if (data.type === 'cut_done') {
+            updateProgress(data.progress);
+            document.getElementById('txtStatus').textContent = data.message;
+            completedCuts.push(data.cut_data);
+            document.getElementById('txtThumbCount').textContent = completedCuts.length + ' / 20';
+            document.getElementById('viewerCount').textContent = completedCuts.length;
+
+            const tBox = document.getElementById('thumb-' + data.cut_index);
+            if (tBox && data.cut_data.image_url) {
+              tBox.innerHTML = `<img src="${data.cut_data.image_url}" class="w-full h-full object-cover rounded-lg">`;
+            }
+          } else if (data.type === 'complete') {
+            updateProgress(100);
+            document.getElementById('txtStatus').textContent = '🎉 20컷 웹툰 생성 완료!';
+            document.getElementById('btnGenerate').disabled = false;
+            document.getElementById('btnGenerate').textContent = '✨ 20컷 웹툰 자동 생성';
+            document.getElementById('actionPostComplete').classList.remove('hidden');
+            eventSource.close();
+          } else if (data.type === 'error') {
+            document.getElementById('txtStatus').textContent = '❌ 오류: ' + data.message;
+            document.getElementById('btnGenerate').disabled = false;
+            document.getElementById('btnGenerate').textContent = '✨ 20컷 웹툰 자동 생성';
+            eventSource.close();
+          }
+        } catch (err) {}
+      };
+
+      eventSource.onerror = () => {
+        document.getElementById('txtStatus').textContent = '연결 종료 또는 오류';
+        document.getElementById('btnGenerate').disabled = false;
+        document.getElementById('btnGenerate').textContent = '✨ 20컷 웹툰 자동 생성';
+        eventSource.close();
+      };
+    });
+
+    function updateProgress(pct) {
+      document.getElementById('txtPercent').textContent = Math.round(pct) + '%';
+      document.getElementById('barProgress').style.width = pct + '%';
+    }
+
+    function renderViewer() {
+      const container = document.getElementById('cutsList');
+      container.innerHTML = '';
+      completedCuts.sort((a, b) => a.cut_index - b.cut_index).forEach(cut => {
+        const item = document.createElement('div');
+        item.className = 'webtoon-panel relative';
+        item.innerHTML = `
+          <div class="relative">
+            <img src="${cut.image_url}" alt="${cut.scene_title}" loading="lazy" class="w-full h-auto block">
+            <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-lg font-mono">
+              #${String(cut.cut_index).padStart(2, '0')} ${cut.phase || ''}
+            </div>
+          </div>
+          <div class="p-4 bg-white border-t border-gray-100 flex items-start justify-between gap-3">
+            <div>
+              <h4 class="text-xs font-bold text-gray-700">${cut.scene_title || ''}</h4>
+              <p class="text-xs text-gray-500 mt-0.5">${cut.scene_summary || ''}</p>
+            </div>
+            ${cut.dialogue ? `<div class="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs px-3 py-1.5 rounded-lg max-w-[220px]">"${cut.dialogue}"</div>` : ''}
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+  </script>
+</body>
+</html>

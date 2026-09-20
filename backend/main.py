@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import sys
 import uuid
 import time
 from typing import Optional
@@ -9,6 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from pydantic import BaseModel
+
+# Ensure backend directory is in sys.path for both local and Vercel serverless
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
 
 from agents.storyboard_agent import StoryboardAgent
 from agents.consistency_agent import ConsistencyAgent
@@ -28,9 +34,15 @@ app.add_middleware(
 )
 
 # 출력 이미지 디렉터리 정적 파일 제공
-OUTPUTS_DIR = os.path.join(os.path.dirname(__file__), "outputs")
-os.makedirs(OUTPUTS_DIR, exist_ok=True)
-app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
+OUTPUTS_DIR = os.path.join(CURRENT_DIR, "outputs")
+if not os.path.exists(OUTPUTS_DIR):
+    try:
+        os.makedirs(OUTPUTS_DIR, exist_ok=True)
+    except Exception:
+        pass
+
+if os.path.exists(OUTPUTS_DIR):
+    app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
 
 # ─── 간단 세션 스토어 (인메모리) ────────────────────────────────────
 sessions: dict = {}
@@ -53,6 +65,9 @@ class GenerateRequest(BaseModel):
 
 @app.get("/")
 def root():
+    html_path = os.path.join(CURRENT_DIR, "index.html")
+    if os.path.exists(html_path):
+        return FileResponse(html_path, media_type="text/html")
     return {"message": "웹툰 생성 API 서버 가동 중 ✅", "version": "1.0.0"}
 
 @app.post("/api/login")

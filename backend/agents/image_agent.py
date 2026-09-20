@@ -30,8 +30,12 @@ class ImageGenerationAgent:
     def __init__(self, hf_token: str = None, session_id: str = "default"):
         self.hf_token = hf_token or os.environ.get("HUGGINGFACE_TOKEN", "")
         self.session_id = session_id
-        self.session_dir = os.path.join(OUTPUT_DIR, session_id)
-        os.makedirs(self.session_dir, exist_ok=True)
+        try:
+            self.session_dir = os.path.join(OUTPUT_DIR, session_id)
+            os.makedirs(self.session_dir, exist_ok=True)
+        except Exception:
+            self.session_dir = os.path.join("/tmp", "outputs", session_id)
+            os.makedirs(self.session_dir, exist_ok=True)
 
     async def generate_all(
         self,
