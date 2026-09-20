@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node -e \"const fs=require('fs'); if(!fs.existsSync('frontend')) fs.mkdirSync('frontend'); fs.cpSync('.next', 'frontend/.next', {recursive: true}); console.log('Copied .next to frontend/.next');\"",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
