@@ -19,86 +19,81 @@
       background-size: 200% 100%;
       animation: shimmer 2s linear infinite;
     }
+    /* 모달 오버레이 */
+    #exportModal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    #exportModal.flex { display: flex; }
   </style>
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900">
 
-  <!-- 1. 로그인 뷰 -->
+  <!-- ══════════════════════ 1. 로그인 뷰 ══════════════════════ -->
   <div id="loginView" class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
     <div class="relative w-full max-w-md">
       <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-10 text-center text-white">
-          <div class="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-2xl mb-3 text-2xl backdrop-blur-sm">
-            📖
-          </div>
+          <div class="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-2xl mb-3 text-2xl backdrop-blur-sm">📖</div>
           <h1 class="text-2xl font-bold mb-1">웹툰 스튜디오</h1>
-          <p className="text-indigo-200 text-sm">AI 자동 웹툰 생성 플랫폼</p>
+          <p class="text-indigo-200 text-sm">AI 자동 웹툰 생성 플랫폼</p>
         </div>
-
         <div class="px-8 py-8">
           <div class="mb-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-1">관리자 로그인</h2>
             <p class="text-sm text-gray-500">장문 스토리를 20컷 웹툰으로 변환하세요</p>
           </div>
-
           <form id="loginForm" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1.5">관리자 ID</label>
               <input id="loginId" type="text" placeholder="아이디를 입력하세요 (admin)" required
                 class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-indigo-500 outline-none transition" />
             </div>
-
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1.5">비밀번호</label>
               <input id="loginPw" type="password" placeholder="비밀번호를 입력하세요 (123jesus)" required
                 class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-indigo-500 outline-none transition" />
             </div>
-
             <div id="loginError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5"></div>
-
             <button type="submit" id="loginBtn"
-              class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition shadow-md hover:shadow-lg mt-2 flex items-center justify-center gap-2">
+              class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition shadow-md hover:shadow-lg mt-2">
               로그인 →
             </button>
           </form>
         </div>
       </div>
-      <p class="text-center text-xs text-gray-400 mt-6">Hyun's Cartoon Studio · AI 웹툰 자동 생성기 v1.0</p>
+      <p class="text-center text-xs text-gray-400 mt-6">Hyun's Cartoon Studio · AI 웹툰 자동 생성기 v2.0</p>
     </div>
   </div>
 
-  <!-- 2. 메인 스튜디오 뷰 -->
+  <!-- ══════════════════════ 2. 메인 스튜디오 뷰 ══════════════════════ -->
   <div id="studioView" class="hidden min-h-screen bg-gray-50">
+
     <!-- 헤더 -->
     <header class="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg shadow-sm">
-            🎨
-          </div>
+          <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg shadow-sm">🎨</div>
           <div>
             <h1 class="text-base font-bold text-gray-900 leading-tight">웹툰 스튜디오</h1>
             <p class="text-xs text-gray-400 leading-tight">AI 자동 20컷 웹툰 생성기</p>
           </div>
         </div>
-
         <div class="flex bg-gray-100 rounded-xl p-1 gap-1">
-          <button id="tabStudio" class="px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm">
-            ✨ 스튜디오
-          </button>
-          <button id="tabViewer" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700">
-            📖 뷰어 (<span id="viewerCount">0</span>컷)
-          </button>
+          <button id="tabStudio" class="px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm">✨ 스튜디오</button>
+          <button id="tabViewer" class="px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700">📖 뷰어 (<span id="viewerCount">0</span>컷)</button>
         </div>
-
-        <button id="logoutBtn" class="text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-lg transition">
-          로그아웃
-        </button>
+        <button id="logoutBtn" class="text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-lg transition">로그아웃</button>
       </div>
     </header>
 
-    <!-- 스튜디오 패널 -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      <!-- ── 스튜디오 패널 ── -->
       <div id="panelStudio" class="space-y-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-900 mb-1">✍️ 웹툰 스토리 입력</h2>
@@ -133,11 +128,10 @@
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div class="flex items-center justify-between mb-3">
                 <h3 class="text-sm font-semibold text-gray-700">📝 스토리 본문</h3>
-                <button id="btnSample" type="button" class="text-xs text-indigo-600 hover:underline">
-                  💡 예시 스토리 불러오기
-                </button>
+                <button id="btnSample" type="button" class="text-xs text-indigo-600 hover:underline">💡 예시 스토리 불러오기</button>
               </div>
-              <textarea id="storyInput" rows="11" placeholder="여기에 A4 반장~한 장 분량의 스토리를 자유롭게 입력하세요...&#10;&#10;예시: 서울 홍대 골목의 작은 카페 '별빛'을 운영하는 28살 민우는 매일 아침 7시에 문을 열고 혼자 모든 일을 해낸다. 어느 날 비를 피해 들어온 낯선 여자 지아가 카페에서 3시간 동안 노트북을 두드리며 소설을 썼다..."
+              <textarea id="storyInput" rows="11"
+                placeholder="여기에 A4 반장~한 장 분량의 스토리를 자유롭게 입력하세요..."
                 class="w-full p-4 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-indigo-400 outline-none resize-none leading-relaxed"></textarea>
               <div class="flex justify-between items-center text-xs text-gray-400 mt-2">
                 <span id="charCounter">0자</span>
@@ -150,12 +144,19 @@
           <div class="space-y-4">
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h3 class="text-sm font-semibold text-gray-700 mb-4">🚀 웹툰 생성</h3>
-              <button id="btnGenerate" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 rounded-xl shadow-md hover:shadow-lg transition text-sm flex items-center justify-center gap-2">
+              <button id="btnGenerate"
+                class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 rounded-xl shadow-md hover:shadow-lg transition text-sm">
                 ✨ 20컷 웹툰 자동 생성
               </button>
               <div id="actionPostComplete" class="hidden mt-3 space-y-2">
-                <button id="btnGoViewer" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-3 rounded-xl border border-indigo-200 transition text-sm">
+                <button id="btnGoViewer"
+                  class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-3 rounded-xl border border-indigo-200 transition text-sm">
                   📖 웹툰 감상하기
+                </button>
+                <!-- ✅ Export 버튼 -->
+                <button id="btnExport"
+                  class="w-full bg-green-50 hover:bg-green-100 text-green-700 font-semibold py-3 rounded-xl border border-green-200 transition text-sm flex items-center justify-center gap-2">
+                  📥 내보내기 (Export)
                 </button>
               </div>
             </div>
@@ -184,7 +185,7 @@
         </div>
       </div>
 
-      <!-- 뷰어 패널 -->
+      <!-- ── 뷰어 패널 ── -->
       <div id="panelViewer" class="hidden space-y-4">
         <div class="flex items-center justify-between">
           <button id="btnBackToStudio" class="text-sm text-gray-600 hover:text-gray-900 bg-white border border-gray-200 px-3 py-2 rounded-xl transition">
@@ -194,7 +195,11 @@
             <h2 id="viewerTitle" class="text-lg font-bold text-gray-900">웹툰 감상</h2>
             <p id="viewerSub" class="text-xs text-gray-400">20컷 · 세로 스크롤 뷰어</p>
           </div>
-          <div></div>
+          <!-- 뷰어 내 Export 버튼 -->
+          <button id="btnExportViewer"
+            class="hidden text-sm bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-semibold transition">
+            📥 내보내기
+          </button>
         </div>
 
         <div class="flex justify-center">
@@ -216,37 +221,78 @@
     </main>
   </div>
 
+  <!-- ══════════════════════ Export 모달 ══════════════════════ -->
+  <div id="exportModal">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md mx-4 overflow-hidden">
+      <div class="bg-gradient-to-r from-green-600 to-teal-600 px-6 py-5 text-white">
+        <h2 class="text-lg font-bold mb-0.5">📥 웹툰 내보내기</h2>
+        <p class="text-green-100 text-xs">완성된 20컷 웹툰을 저장하세요</p>
+      </div>
+      <div class="p-6 space-y-4">
+        <!-- 저장 방식 체크박스 -->
+        <div class="space-y-3">
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" id="chkLocal" checked
+              class="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500">
+            <div>
+              <div class="font-medium text-gray-800 text-sm">💾 로컬 다운로드</div>
+              <div class="text-xs text-gray-500">HTML 파일로 내 컴퓨터에 저장</div>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" id="chkNeon"
+              class="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500">
+            <div>
+              <div class="font-medium text-gray-800 text-sm">☁️ Neon DB 저장</div>
+              <div class="text-xs text-gray-500">클라우드 데이터베이스에 영구 저장</div>
+            </div>
+          </label>
+        </div>
+
+        <div id="exportStatus" class="hidden text-sm px-3 py-2 rounded-lg"></div>
+
+        <div class="flex gap-3 pt-2">
+          <button id="btnExportCancel"
+            class="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-3 rounded-xl text-sm transition">
+            취소
+          </button>
+          <button id="btnExportConfirm"
+            class="flex-1 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white font-semibold py-3 rounded-xl text-sm transition">
+            저장하기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ JavaScript ══════════════════════ -->
   <script>
     let token = sessionStorage.getItem('webtoon_token') || '';
     let selectedGenre = 'drama';
     let completedCuts = [];
+    let currentSessionId = '';
+    let currentTitle = '웹툰';
     let eventSource = null;
 
-    // 초기 화면 상태
-    if (token) {
-      showStudio();
-    } else {
-      showLogin();
-    }
+    // ── 초기 화면 ──────────────────────────────────────────────
+    token ? showStudio() : showLogin();
 
     function showLogin() {
       document.getElementById('loginView').classList.remove('hidden');
       document.getElementById('studioView').classList.add('hidden');
     }
-
     function showStudio() {
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('studioView').classList.remove('hidden');
     }
 
-    // 로그인
+    // ── 로그인 ────────────────────────────────────────────────
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('loginId').value.trim();
       const pw = document.getElementById('loginPw').value;
       const errBox = document.getElementById('loginError');
       errBox.classList.add('hidden');
-
       try {
         const res = await fetch('/api/login', {
           method: 'POST',
@@ -259,23 +305,23 @@
           sessionStorage.setItem('webtoon_token', token);
           showStudio();
         } else {
-          errBox.textContent = data.detail || '로그인 실패. 다시 확인해 주세요.';
+          errBox.textContent = data.detail || '로그인 실패';
           errBox.classList.remove('hidden');
         }
-      } catch (err) {
+      } catch {
         errBox.textContent = '서버 연결 실패';
         errBox.classList.remove('hidden');
       }
     });
 
-    // 로그아웃
+    // ── 로그아웃 ──────────────────────────────────────────────
     document.getElementById('logoutBtn').addEventListener('click', () => {
       token = '';
       sessionStorage.removeItem('webtoon_token');
       showLogin();
     });
 
-    // 장르 선택
+    // ── 장르 선택 ─────────────────────────────────────────────
     document.querySelectorAll('.genre-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.genre-btn').forEach(b => {
@@ -286,57 +332,56 @@
       });
     });
 
-    // 글자 수 카운터
+    // ── 글자수 카운터 ─────────────────────────────────────────
     const storyInput = document.getElementById('storyInput');
     storyInput.addEventListener('input', () => {
       document.getElementById('charCounter').textContent = storyInput.value.length + '자';
     });
-
     document.getElementById('btnClear').addEventListener('click', () => {
       storyInput.value = '';
       document.getElementById('charCounter').textContent = '0자';
     });
 
-    // 예시 스토리 불러오기
+    // ── 예시 스토리 ───────────────────────────────────────────
     document.getElementById('btnSample').addEventListener('click', () => {
       storyInput.value = `서울 홍대 골목의 작은 카페 '별빛'을 운영하는 28살 민우는 매일 아침 7시에 문을 열고 혼자 모든 일을 해낸다. 어느 날, 비를 피해 들어온 낯선 여자 지아가 카페에서 3시간 동안 노트북을 두드리며 소설을 썼다. 민우는 그녀의 커피잔이 빌 때마다 말없이 채워줬고, 지아는 고개 들어 미소를 지었다. 그것이 전부였다. 다음 날도, 그 다음 날도 지아는 같은 자리에 앉아 같은 시간을 보냈다. 어느 월요일 아침, 지아가 나타나지 않았다. 민우는 처음으로 카페 안이 이렇게 넓었다는 것을 알았다. 일주일이 지나 지아가 돌아왔을 때, 그녀의 손에는 두 권의 책이 있었다. 하나는 자신이 쓴 소설, 다른 하나는 선물. 민우는 그 책을 받아들고, 처음으로 먼저 말을 건넸다. "드시는 것 좀 시켜도 되겠어요? 오늘은 제가 직접 서빙하고 싶거든요."`;
       document.getElementById('charCounter').textContent = storyInput.value.length + '자';
     });
 
-    // 탭 전환
-    document.getElementById('tabStudio').addEventListener('click', () => {
-      document.getElementById('panelStudio').classList.remove('hidden');
-      document.getElementById('panelViewer').classList.add('hidden');
-      document.getElementById('tabStudio').className = 'px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm';
-      document.getElementById('tabViewer').className = 'px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700';
-    });
+    // ── 탭 전환 ───────────────────────────────────────────────
+    document.getElementById('tabStudio').addEventListener('click', () => switchTab('studio'));
+    document.getElementById('tabViewer').addEventListener('click', () => switchTab('viewer'));
+    document.getElementById('btnGoViewer').addEventListener('click', () => switchTab('viewer'));
+    document.getElementById('btnBackToStudio').addEventListener('click', () => switchTab('studio'));
 
-    function openViewer() {
-      document.getElementById('panelStudio').classList.add('hidden');
-      document.getElementById('panelViewer').classList.remove('hidden');
-      document.getElementById('tabViewer').className = 'px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm';
-      document.getElementById('tabStudio').className = 'px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700';
-      renderViewer();
+    function switchTab(tab) {
+      const isViewer = tab === 'viewer';
+      document.getElementById('panelStudio').classList.toggle('hidden', isViewer);
+      document.getElementById('panelViewer').classList.toggle('hidden', !isViewer);
+      document.getElementById('tabViewer').className = isViewer
+        ? 'px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm'
+        : 'px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700';
+      document.getElementById('tabStudio').className = isViewer
+        ? 'px-4 py-1.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700'
+        : 'px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-indigo-600 shadow-sm';
+      if (isViewer) renderViewer();
     }
 
-    document.getElementById('tabViewer').addEventListener('click', openViewer);
-    document.getElementById('btnGoViewer').addEventListener('click', openViewer);
-    document.getElementById('btnBackToStudio').addEventListener('click', () => {
-      document.getElementById('tabStudio').click();
-    });
-
-    // 웹툰 생성 실행
+    // ── 웹툰 생성 ─────────────────────────────────────────────
     document.getElementById('btnGenerate').addEventListener('click', () => {
       const story = storyInput.value.trim();
       if (!story || story.length < 30) {
         alert('스토리를 최소 30자 이상 입력해 주세요.');
         return;
       }
-
       completedCuts = [];
+      currentSessionId = '';
+      currentTitle = '웹툰';
+
       document.getElementById('cardProgress').classList.remove('hidden');
       document.getElementById('cardThumbnails').classList.remove('hidden');
       document.getElementById('actionPostComplete').classList.add('hidden');
+      document.getElementById('btnExportViewer').classList.add('hidden');
       document.getElementById('btnGenerate').disabled = true;
       document.getElementById('btnGenerate').textContent = '⏳ 생성 진행 중...';
 
@@ -351,12 +396,7 @@
         grid.appendChild(d);
       }
 
-      const params = new URLSearchParams({
-        story: story,
-        genre: selectedGenre,
-        session_token: token
-      });
-
+      const params = new URLSearchParams({ story, genre: selectedGenre, session_token: token });
       if (eventSource) eventSource.close();
       eventSource = new EventSource('/api/generate-stream?' + params.toString());
 
@@ -372,10 +412,12 @@
             completedCuts.push(data.cut_data);
             document.getElementById('txtThumbCount').textContent = completedCuts.length + ' / 20';
             document.getElementById('viewerCount').textContent = completedCuts.length;
+            if (data.session_id) currentSessionId = data.session_id;
 
             const tBox = document.getElementById('thumb-' + data.cut_index);
             if (tBox && data.cut_data.image_url) {
-              tBox.innerHTML = `<img src="${data.cut_data.image_url}" class="w-full h-full object-cover rounded-lg" onerror="this.onerror=null; this.src='https://placehold.co/100x133/e2e8f0/64748b?text=%23${data.cut_index}';">`;
+              tBox.innerHTML = `<img src="${data.cut_data.image_url}" class="w-full h-full object-cover rounded-lg"
+                onerror="this.onerror=null; this.src='https://placehold.co/100x133/e2e8f0/64748b?text=%23${data.cut_index}';">`;
             }
           } else if (data.type === 'complete') {
             updateProgress(100);
@@ -383,6 +425,9 @@
             document.getElementById('btnGenerate').disabled = false;
             document.getElementById('btnGenerate').textContent = '✨ 20컷 웹툰 자동 생성';
             document.getElementById('actionPostComplete').classList.remove('hidden');
+            document.getElementById('btnExportViewer').classList.remove('hidden');
+            if (data.session_id) currentSessionId = data.session_id;
+            if (data.title) currentTitle = data.title;
             eventSource.close();
           } else if (data.type === 'error') {
             document.getElementById('txtStatus').textContent = '❌ 오류: ' + data.message;
@@ -390,7 +435,7 @@
             document.getElementById('btnGenerate').textContent = '✨ 20컷 웹툰 자동 생성';
             eventSource.close();
           }
-        } catch (err) {}
+        } catch {}
       };
 
       eventSource.onerror = () => {
@@ -406,51 +451,196 @@
       document.getElementById('barProgress').style.width = pct + '%';
     }
 
+    // ── 뷰어 렌더링 ───────────────────────────────────────────
     function renderViewer() {
+      document.getElementById('bannerTitle').textContent = currentTitle;
       const container = document.getElementById('cutsList');
       container.innerHTML = '';
+
       completedCuts.sort((a, b) => a.cut_index - b.cut_index).forEach(cut => {
         const item = document.createElement('div');
         item.className = 'webtoon-panel relative bg-white';
 
-        // 컷 이미지와 오버레이 말풍선 렌더링
+        const escapedTitle = (cut.scene_title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const escapedSummary = (cut.scene_summary || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
         item.innerHTML = `
-          <div class="relative bg-gray-100 min-h-[500px] overflow-hidden">
-            <img src="${cut.image_url}" alt="${cut.scene_title}" loading="lazy" 
-              class="w-full h-auto block min-h-[500px] object-cover"
-              onerror="this.onerror=null; this.src='https://placehold.co/768x1024/f1f5f9/475569?text=' + encodeURIComponent('컷 #' + '${cut.cut_index}' + ' ' + '${cut.scene_title}');">
-            
+          <div class="relative bg-gray-100 min-h-[400px] overflow-hidden">
+            <img
+              src="${cut.image_url}"
+              alt="${escapedTitle}"
+              loading="lazy"
+              class="w-full h-auto block"
+              onerror="this.onerror=null; this.src='https://placehold.co/768x1024/f1f5f9/475569?text=Cut+${cut.cut_index}';">
+
             <!-- 컷 번호 뱃지 -->
             <div class="absolute top-4 left-4 bg-black/70 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-xl font-mono shadow-md">
               #${String(cut.cut_index).padStart(2, '0')} ${cut.phase || ''}
             </div>
 
-            <!-- 웹툰 스타일 말풍선 오버레이 (이미지 위 직접 표시) -->
+            <!-- 말풍선 오버레이 -->
             ${cut.dialogue ? `
               <div class="absolute bottom-8 right-6 max-w-[75%] bg-white/95 backdrop-blur-sm border-2 border-gray-900 px-5 py-3.5 rounded-2xl shadow-2xl">
-                <div class="text-xs font-bold text-indigo-600 mb-1 flex items-center gap-1">
-                  💬 ${cut.speaker || '주인공'}
-                </div>
-                <div class="text-sm font-semibold text-gray-900 leading-snug tracking-tight">
-                  "${cut.dialogue}"
-                </div>
+                <div class="text-xs font-bold text-indigo-600 mb-1">💬 ${cut.speaker || '주인공'}</div>
+                <div class="text-sm font-semibold text-gray-900 leading-snug">"${cut.dialogue}"</div>
               </div>
             ` : ''}
           </div>
 
-          <!-- 하단 해설 정보 바 -->
-          <div class="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
-            <div>
-              <span class="text-xs font-bold text-gray-800">${cut.scene_title || ''}</span>
-              <p class="text-xs text-gray-500 mt-0.5">${cut.scene_summary || ''}</p>
+          <div class="p-4 bg-white border-t border-gray-100 flex items-start justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <span class="text-xs font-bold text-gray-800 block truncate">${cut.scene_title || ''}</span>
+              <p class="text-xs text-gray-500 mt-0.5 line-clamp-2">${cut.scene_summary || ''}</p>
             </div>
-            <a href="${cut.image_url}" target="_blank" download="cut_${cut.cut_index}.png" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-              원본 다운로드 ↗
+            <a href="${cut.image_url}" target="_blank"
+              class="shrink-0 text-xs text-indigo-600 hover:text-indigo-800 font-medium bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+              원본 ↗
             </a>
           </div>
         `;
         container.appendChild(item);
       });
+    }
+
+    // ── Export 기능 ───────────────────────────────────────────
+    function openExportModal() {
+      if (completedCuts.length === 0) {
+        alert('먼저 웹툰을 생성해 주세요.');
+        return;
+      }
+      document.getElementById('exportStatus').classList.add('hidden');
+      document.getElementById('exportModal').classList.add('flex');
+    }
+
+    document.getElementById('btnExport').addEventListener('click', openExportModal);
+    document.getElementById('btnExportViewer').addEventListener('click', openExportModal);
+    document.getElementById('btnExportCancel').addEventListener('click', () => {
+      document.getElementById('exportModal').classList.remove('flex');
+    });
+
+    document.getElementById('btnExportConfirm').addEventListener('click', async () => {
+      const saveLocal = document.getElementById('chkLocal').checked;
+      const saveNeon  = document.getElementById('chkNeon').checked;
+
+      if (!saveLocal && !saveNeon) {
+        alert('저장 방식을 하나 이상 선택해 주세요.');
+        return;
+      }
+
+      const statusEl = document.getElementById('exportStatus');
+      statusEl.textContent = '처리 중...';
+      statusEl.className = 'text-sm px-3 py-2 rounded-lg bg-blue-50 text-blue-700';
+      statusEl.classList.remove('hidden');
+      document.getElementById('btnExportConfirm').disabled = true;
+
+      // HTML 생성
+      const exportHtml = buildExportHtml();
+
+      let messages = [];
+
+      // 1) 로컬 다운로드
+      if (saveLocal) {
+        try {
+          const blob = new Blob([exportHtml], { type: 'text/html;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const safeName = currentTitle.replace(/[^가-힣a-zA-Z0-9]/g, '_') || 'webtoon';
+          a.download = `${safeName}_webtoon.html`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          messages.push('💾 로컬 다운로드 완료');
+        } catch (err) {
+          messages.push('💾 로컬 다운로드 실패: ' + err.message);
+        }
+      }
+
+      // 2) Neon DB 저장
+      if (saveNeon) {
+        try {
+          const res = await fetch('/api/export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: currentSessionId,
+              title: currentTitle,
+              html: exportHtml,
+              save_to_neon: true
+            })
+          });
+          const result = await res.json();
+          messages.push(result.success ? '☁️ Neon DB 저장 완료' : '☁️ Neon DB 저장 실패: ' + result.message);
+        } catch (err) {
+          messages.push('☁️ Neon DB 오류: ' + err.message);
+        }
+      }
+
+      statusEl.textContent = messages.join('  |  ');
+      statusEl.className = 'text-sm px-3 py-2 rounded-lg bg-green-50 text-green-700';
+      document.getElementById('btnExportConfirm').disabled = false;
+    });
+
+    function buildExportHtml() {
+      const cutsHtml = completedCuts
+        .sort((a, b) => a.cut_index - b.cut_index)
+        .map(cut => `
+          <div style="border-bottom:2px solid #e2e8f0; background:#fff; position:relative;">
+            <div style="position:relative; background:#f1f5f9; min-height:400px;">
+              <img src="${cut.image_url}" alt="${(cut.scene_title||'').replace(/"/g,'&quot;')}"
+                style="width:100%;height:auto;display:block;"
+                onerror="this.src='https://placehold.co/768x1024/f1f5f9/475569?text=Cut+${cut.cut_index}'">
+              <div style="position:absolute;top:16px;left:16px;background:rgba(0,0,0,0.7);color:#fff;font-size:11px;padding:6px 12px;border-radius:10px;font-family:monospace;">
+                #${String(cut.cut_index).padStart(2,'0')} ${cut.phase||''}
+              </div>
+              ${cut.dialogue ? `
+              <div style="position:absolute;bottom:32px;right:24px;max-width:75%;background:rgba(255,255,255,0.97);border:2px solid #111;padding:14px 18px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.18);">
+                <div style="font-size:11px;font-weight:700;color:#4f46e5;margin-bottom:4px;">💬 ${cut.speaker||'주인공'}</div>
+                <div style="font-size:13px;font-weight:600;color:#111;line-height:1.5;">"${cut.dialogue}"</div>
+              </div>` : ''}
+            </div>
+            <div style="padding:14px 16px;background:#fff;border-top:1px solid #f1f5f9;">
+              <strong style="font-size:12px;color:#1e293b;">${cut.scene_title||''}</strong>
+              <p style="font-size:11px;color:#64748b;margin:4px 0 0;">${cut.scene_summary||''}</p>
+            </div>
+          </div>
+        `).join('');
+
+      const now = new Date().toLocaleString('ko-KR');
+      return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>${currentTitle} – Hyun's Cartoon Studio</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; background:#f8fafc; }
+    .container { max-width:800px; margin:0 auto; background:#fff; box-shadow:0 0 40px rgba(0,0,0,0.1); }
+    .header { background:linear-gradient(135deg,#1e293b,#334155); color:#fff; text-align:center; padding:40px 20px; }
+    .header small { color:#94a3b8; font-size:11px; letter-spacing:2px; text-transform:uppercase; }
+    .header h1 { font-size:24px; font-weight:800; margin:8px 0 4px; }
+    .footer { background:#1e293b; color:#fff; text-align:center; padding:32px 20px; }
+    .footer p { color:#94a3b8; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <small>AI 자동 생성 웹툰</small>
+      <h1>${currentTitle}</h1>
+      <p style="color:#94a3b8;font-size:12px;margin-top:8px;">총 20컷 · Hyun's Cartoon Studio · ${now}</p>
+    </div>
+    ${cutsHtml}
+    <div class="footer">
+      <div style="font-size:24px;margin-bottom:8px;">🎉</div>
+      <p style="font-size:14px;font-weight:700;margin-bottom:4px;">— 끝 —</p>
+      <p>Hyun's Cartoon Studio · Powered by FLUX AI · Neon DB</p>
+    </div>
+  </div>
+</body>
+</html>`;
     }
   </script>
 </body>
