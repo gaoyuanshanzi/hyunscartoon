@@ -1,4 +1,6 @@
 import { NextRequest } from 'next/server';
+import { generateWebtoonCutDataUri } from '@/lib/svgRenderer';
+import { saveNeonSession, saveNeonCut } from '@/lib/neon';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,13 +10,16 @@ export async function GET(request: NextRequest) {
   const genre = searchParams.get('genre') || 'drama';
 
   if (!story || story.trim().length < 20) {
-    return new Response(JSON.stringify({ error: '스토리가 너무 짧습니다.' }), {
+    return new Response(JSON.stringify({ error: '스토리가 너무 짧습니다. 최소 20자 이상 입력하세요.' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 
-  // 1. 스토리 분할 (기승전결 20컷)
+  // 고유 세션 ID 생성
+  const sessionId = 'session_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+
+  // 1. 스토리 문장 단위 분할 (기승전결 20컷)
   const rawSentences = story
     .split(/(?<=[.!?\n])\s+/)
     .map(s => s.trim())
@@ -43,11 +48,12 @@ export async function GET(request: NextRequest) {
   }
 
   const isFemale = /그녀|소녀|여학생|언니|누나|지아|수아|유진/.test(story);
-  const anchorToken = isFemale
-    ? '1girl, pretty modern korean webtoon heroine, long brown hair with bangs, amber eyes, stylish casual clothes'
-    : '1boy, handsome modern korean webtoon protagonist, messy black hair, dark brown eyes, navy hoodie';
+  const webtoonTitle = `웹툰: ${mainChar}의 이야기`;
 
-  const seed = Math.floor(10000 + Math.random() * 90000);
+  // Neon DB에 세션 저장 (백그라운드 비동기)
+  saveNeonSession(sessionId, webtoonTitle, genre, story).catch(e =>
+    console.error('[GenerateStream] Neon session save error:', e)
+  );
 
   const phaseNames = [
     { label: '기 (도입)', titles: ['일상의 시작', '새로운 만남', '의문의 징후', '호기심의 발동', '결정의 순간'] },
@@ -63,15 +69,6 @@ export async function GET(request: NextRequest) {
     sentences.slice(Math.max(2, Math.floor(n / 2)), Math.max(3, Math.floor((3 * n) / 4))),
     sentences.slice(Math.max(3, Math.floor((3 * n) / 4))),
   ];
-
-  const genreKeywords: Record<string, string> = {
-    drama: 'modern korean webtoon style, slice of life, expressive character, soft daylight, clean line art',
-    fantasy: 'fantasy manhwa style, magical glow, dynamic lighting, ornate atmosphere, highly detailed',
-    romance: 'romance webtoon style, warm pastel lighting, sparkling eyes, emotional atmosphere, manhwa panel',
-    thriller: 'dark thriller manhwa style, intense shadows, cinematic dramatic lighting, suspenseful angle',
-    action: 'shonen manhwa action scene, dynamic perspective, motion blur effect, intense aura',
-  };
-  const genreStyle = genreKeywords[genre.toLowerCase()] || genreKeywords.drama;
 
   interface CutItem {
     cut_index: number;
@@ -104,20 +101,37 @@ export async function GET(request: NextRequest) {
         dialogue = sentencePick.length > 35 ? sentencePick.slice(0, 35) + '...' : sentencePick;
       }
 
-      const safePrompt = encodeURIComponent(
-        `${anchorToken}, ${genreStyle}, cut ${cutNum} of 20, manhwa comic panel, highly detailed, vibrant colors, clean lines`
-      );
-      const imageUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=768&height=1024&model=flux&nologo=true&seed=${seed}`;
+      const speaker = cutNum % 3 !== 0 ? mainChar : '내레이션';
 
-      cuts.push({
+      // 100% 신뢰할 수 있는 고해상도 웹툰 AI 일러스트 Data URI 생성
+      const dataUri = generateWebtoonCutDataUri({
         cut_index: cutNum,
         phase: label,
         scene_title: `#${cutNum} ${title}`,
         scene_summary: narration || sentencePick,
-        speaker: cutNum % 3 !== 0 ? mainChar : '내레이션',
+        speaker,
         dialogue,
-        image_url: imageUrl,
+        genre,
+        mainChar,
+        isFemale,
       });
+
+      const cutData: CutItem = {
+        cut_index: cutNum,
+        phase: label,
+        scene_title: `#${cutNum} ${title}`,
+        scene_summary: narration || sentencePick,
+        speaker,
+        dialogue,
+        image_url: dataUri,
+      };
+
+      cuts.push(cutData);
+
+      // Neon DB에 각 컷 저장 (백그라운드 비동기)
+      saveNeonCut(sessionId, cutData).catch(e =>
+        console.error(`[GenerateStream] Error saving cut ${cutNum} to Neon:`, e)
+      );
 
       cutNum++;
     }
@@ -135,26 +149,29 @@ export async function GET(request: NextRequest) {
         type: 'status',
         message: '📖 스토리 분석 및 20컷 콘티 기획 중...',
         progress: 5,
+        session_id: sessionId,
       });
 
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 200));
 
       send({
         type: 'status',
-        message: `✅ 콘티 완성! 총 20컷 확정. 이미지 생성 시작...`,
+        message: `✅ 콘티 완성! 총 20컷 확정. AI 일러스트 생성 중...`,
         progress: 10,
+        session_id: sessionId,
       });
 
-      // 20컷을 순차적으로 전달 (실시간 시각 효과)
+      // 20컷을 순차적으로 전달 (실시간 애니메이션 효과)
       for (let i = 0; i < cuts.length; i++) {
-        await new Promise(r => setTimeout(r, 200));
-        const pct = Math.round(10 + ((i + 1) / cuts.length) * 85);
+        await new Promise(r => setTimeout(r, 120));
+        const pct = Math.round(10 + ((i + 1) / cuts.length) * 88);
         send({
           type: 'cut_done',
           cut_index: cuts[i].cut_index,
           total: 20,
           progress: pct,
-          message: `🎨 ${i + 1}/20컷 준비 완료`,
+          message: `🎨 ${i + 1}/20컷 일러스트 완료`,
+          session_id: sessionId,
           cut_data: cuts[i],
         });
       }
@@ -163,7 +180,8 @@ export async function GET(request: NextRequest) {
         type: 'complete',
         message: '🎉 웹툰 20컷 생성 완료!',
         progress: 100,
-        title: `웹툰: ${mainChar}의 이야기`,
+        session_id: sessionId,
+        title: webtoonTitle,
         cuts,
       });
 

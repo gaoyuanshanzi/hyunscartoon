@@ -26,12 +26,14 @@ export default function StudioPage({ token, onLogout }: Props) {
   const [statusMsg, setStatusMsg] = useState('');
   const [completedCuts, setCompletedCuts] = useState<CutData[]>([]);
   const [webtoonTitle, setWebtoonTitle] = useState('');
+  const [sessionId, setSessionId] = useState('');
   const [finished, setFinished] = useState(false);
   const [view, setView] = useState<'studio' | 'viewer'>('studio');
 
-  const handleComplete = (cuts: CutData[], title: string) => {
+  const handleComplete = (cuts: CutData[], title: string, sId?: string) => {
     setCompletedCuts(cuts);
     setWebtoonTitle(title);
+    if (sId) setSessionId(sId);
     setFinished(true);
   };
 
@@ -48,7 +50,7 @@ export default function StudioPage({ token, onLogout }: Props) {
               </div>
               <div>
                 <h1 className="text-base font-bold text-gray-900 leading-tight">웹툰 스튜디오</h1>
-                <p className="text-xs text-gray-400 leading-tight">AI 자동 20컷 웹툰 생성기</p>
+                <p className="text-xs text-gray-400 leading-tight">AI 자동 20컷 웹툰 생성기 · Neon DB 연동</p>
               </div>
             </div>
 
@@ -56,7 +58,9 @@ export default function StudioPage({ token, onLogout }: Props) {
             <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
               <button
                 onClick={() => setView('studio')}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${view === 'studio' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  view === 'studio' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" /> 스튜디오
@@ -65,7 +69,9 @@ export default function StudioPage({ token, onLogout }: Props) {
               <button
                 onClick={() => setView('viewer')}
                 disabled={completedCuts.length === 0}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${view === 'viewer' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'} disabled:opacity-40 disabled:cursor-not-allowed`}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  view === 'viewer' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 <span className="flex items-center gap-1.5">
                   <BookOpen className="w-3.5 h-3.5" />
@@ -103,11 +109,14 @@ export default function StudioPage({ token, onLogout }: Props) {
             onViewWebtoon={() => setView('viewer')}
             finished={finished}
             setFinished={setFinished}
+            sessionId={sessionId}
+            setSessionId={setSessionId}
           />
         ) : (
           <WebtoonViewer
             cuts={completedCuts}
             title={webtoonTitle}
+            sessionId={sessionId}
             onBack={() => setView('studio')}
           />
         )}

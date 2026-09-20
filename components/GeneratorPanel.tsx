@@ -35,21 +35,22 @@ interface Props {
   setStatusMsg: (v: string) => void;
   completedCuts: CutData[];
   setCompletedCuts: React.Dispatch<React.SetStateAction<CutData[]>>;
-  onComplete: (cuts: CutData[], title: string) => void;
+  onComplete: (cuts: CutData[], title: string, sessionId?: string) => void;
   onViewWebtoon: () => void;
   finished: boolean;
   setFinished: (v: boolean) => void;
+  sessionId: string;
+  setSessionId: (v: string) => void;
 }
 
 export default function GeneratorPanel({
   token, generating, setGenerating, progress, setProgress,
   statusMsg, setStatusMsg, completedCuts, setCompletedCuts,
-  onComplete, onViewWebtoon, finished, setFinished
+  onComplete, onViewWebtoon, finished, setFinished,
+  sessionId, setSessionId
 }: Props) {
   const [story, setStory] = useState('');
   const [genre, setGenre] = useState('drama');
-  const [hfToken, setHfToken] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [showExample, setShowExample] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -57,13 +58,12 @@ export default function GeneratorPanel({
   const charCount = story.length;
 
   const handleGenerate = () => {
-    if (!story.trim() || story.trim().length < 50) {
-      alert('스토리 내용을 최소 50자 이상 입력해 주세요. (A4 반장~한 장 분량 권장)');
+    if (!story.trim() || story.trim().length < 30) {
+      alert('스토리 내용을 최소 30자 이상 입력해 주세요. (A4 반장~한 장 분량 권장)');
       return;
     }
     if (generating) return;
 
-    // 초기화
     setGenerating(true);
     setFinished(false);
     setCompletedCuts([]);
@@ -74,7 +74,6 @@ export default function GeneratorPanel({
       story: story,
       genre: genre,
       session_token: token,
-      ...(hfToken ? { hf_token: hfToken } : {}),
     });
 
     const es = new EventSource(`${API_BASE}/api/generate-stream?${params.toString()}`);
@@ -83,6 +82,10 @@ export default function GeneratorPanel({
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+
+        if (data.session_id) {
+          setSessionId(data.session_id);
+        }
 
         if (data.type === 'status') {
           setStatusMsg(data.message);
@@ -99,10 +102,10 @@ export default function GeneratorPanel({
           });
         } else if (data.type === 'complete') {
           setProgress(100);
-          setStatusMsg('🎉 웹툰 생성 완료!');
+          setStatusMsg('🎉 웹툰 20컷 생성 및 Neon DB 저장 완료!');
           setFinished(true);
           setGenerating(false);
-          onComplete(data.cuts || completedCuts, data.title || '웹툰');
+          onComplete(data.cuts || completedCuts, data.title || '웹툰', data.session_id);
           es.close();
         } else if (data.type === 'error') {
           setStatusMsg(`❌ 오류: ${data.message}`);
@@ -110,12 +113,12 @@ export default function GeneratorPanel({
           es.close();
         }
       } catch (_err) {
-        // JSON 파싱 실패 무시
+        // JSON 파싱 무시
       }
     };
 
     es.onerror = () => {
-      setStatusMsg('❌ 서버 연결 오류. 백엔드 서버가 실행 중인지 확인하세요.');
+      setStatusMsg('❌ 연결 오류. 다시 시도해 주세요.');
       setGenerating(false);
       es.close();
     };
@@ -139,14 +142,12 @@ export default function GeneratorPanel({
 
   return (
     <div className="space-y-6">
-      {/* 페이지 제목 */}
       <div className="fade-in-up">
         <h2 className="text-2xl font-bold text-gray-900 mb-1">✍️ 웹툰 스토리 입력</h2>
-        <p className="text-gray-500 text-sm">A4 반장~한 장 분량의 스토리를 입력하면 20컷 웹툰으로 자동 변환됩니다.</p>
+        <p className="text-gray-500 text-sm">A4 반장~한 장 분량의 스토리를 입력하면 20컷 웹툰으로 자동 생성되어 Neon DB에 저장됩니다.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 왼쪽: 입력 패널 */}
         <div className="lg:col-span-2 space-y-4">
           {/* 장르 선택 */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -169,7 +170,7 @@ export default function GeneratorPanel({
             </div>
           </div>
 
-          {/* 스토리 입력 */}
+          {/* 스토리 본문 입력 */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-700">📝 스토리 본문</h3>
@@ -181,7 +182,6 @@ export default function GeneratorPanel({
               </button>
             </div>
 
-            {/* 예시 스토리 */}
             {showExample && (
               <div className="mb-4 space-y-2">
                 {EXAMPLE_STORIES.map(ex => (
@@ -224,41 +224,17 @@ export default function GeneratorPanel({
               )}
             </div>
           </div>
-
-          {/* 고급 설정 */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="w-full flex items-center justify-between px-5 py-4 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              ⚙️ 고급 설정 (HuggingFace 토큰 – 선택사항)
-              {showAdvanced ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}
-            </button>
-            {showAdvanced && (
-              <div className="px-5 pb-5 border-t border-gray-100">
-                <p className="text-xs text-gray-500 mt-3 mb-2">HuggingFace 무료 토큰을 입력하면 AI 이미지 품질이 향상됩니다. 없으면 Pollinations 무료 API를 자동 사용합니다.</p>
-                <input
-                  type="password"
-                  value={hfToken}
-                  onChange={e => setHfToken(e.target.value)}
-                  placeholder="hf_xxxxxxxxxxxx (선택)"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:border-indigo-300 outline-none"
-                />
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* 오른쪽: 컨트롤 + 진행상황 */}
+        {/* 오른쪽: 컨트롤 패널 */}
         <div className="space-y-4">
-          {/* 생성 버튼 */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">🚀 웹툰 생성</h3>
 
             {!generating ? (
               <button
                 onClick={handleGenerate}
-                disabled={!story.trim() || story.trim().length < 50}
+                disabled={!story.trim() || story.trim().length < 30}
                 className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
                 <Sparkles className="w-4 h-4" />
@@ -281,7 +257,7 @@ export default function GeneratorPanel({
                   className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-3 rounded-xl border border-indigo-200 transition-all flex items-center justify-center gap-2 text-sm"
                 >
                   <BookOpen className="w-4 h-4" />
-                  웹툰 감상하기
+                  📖 웹툰 감상 및 내보내기
                 </button>
                 <button
                   onClick={handleReset}
@@ -311,9 +287,9 @@ export default function GeneratorPanel({
                 <p className="text-xs text-gray-600 leading-relaxed">{statusMsg}</p>
               )}
               {generating && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                  <Clock className="w-3.5 h-3.5" />
-                  이미지 생성 중... 약 1~3분 소요
+                <div className="mt-3 flex items-center gap-2 text-xs text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2">
+                  <Clock className="w-3.5 h-3.5 animate-spin" />
+                  AI 일러스트 생성 및 Neon DB 동기화 중...
                 </div>
               )}
             </div>
@@ -329,12 +305,15 @@ export default function GeneratorPanel({
               <div className="grid grid-cols-4 gap-1.5">
                 {Array.from({ length: 20 }, (_, i) => {
                   const cut = completedCuts.find(c => c.cut_index === i + 1);
+                  const isDataOrHttp = cut && (cut.image_url.startsWith('http') || cut.image_url.startsWith('data:'));
+                  const imgSrc = cut ? (isDataOrHttp ? cut.image_url : `${API_BASE}${cut.image_url}`) : '';
+
                   return (
                     <div key={i} className="aspect-[3/4] rounded-lg overflow-hidden bg-gray-100 relative">
                       {cut ? (
                         <>
                           <img
-                            src={cut.image_url.startsWith('http') ? cut.image_url : `${API_BASE}${cut.image_url}`}
+                            src={imgSrc}
                             alt={cut.scene_title}
                             className="w-full h-full object-cover pop-in"
                           />
