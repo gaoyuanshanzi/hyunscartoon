@@ -70,8 +70,8 @@ export async function GET(request: NextRequest) {
     // 해당 스토리에 100% 맞춤 제작된 영문 프롬프트 인코딩
     const encodedPrompt = encodeURIComponent(conti.prompt);
 
-    // Pollinations.ai 무료 API (sana 모델 + enhance + negative prompt 적용)
-    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=600&height=800&nologo=true&seed=${cutSeed}&model=sana&enhance=true&negative=${NEGATIVE_PROMPT}`;
+    // Pollinations.ai 무료 API (안정적인 model=flux 적용, 유료 402 에러를 유발하는 enhance 파라미터 제외)
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=600&height=800&nologo=true&seed=${cutSeed}&model=flux`;
 
     // SVG 폴백 일러스트 (오프라인/에러 대비용)
     const dataUri = generateWebtoonCutDataUri({
