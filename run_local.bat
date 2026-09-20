@@ -10,7 +10,7 @@ echo.
 cd /d "%~dp0"
 
 echo [1/3] 백엔드 의존성 확인...
-pip install -r requirements.txt -q
+pip install -r backend\requirements.txt -q
 
 echo [2/3] 한글 폰트 복사...
 if not exist "backend\fonts" mkdir "backend\fonts"

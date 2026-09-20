@@ -11,7 +11,7 @@ if (-not (Test-Path "venv")) {
 
 # 가상환경 활성화
 Write-Host "🔧 백엔드 의존성 설치 중..." -ForegroundColor Yellow
-& "venv\Scripts\pip.exe" install -r requirements.txt --quiet
+& "venv\Scripts\pip.exe" install -r backend\requirements.txt --quiet
 
 # 폰트 디렉터리 확인
 if (-not (Test-Path "backend\fonts\malgun.ttf")) {
