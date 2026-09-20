@@ -4,32 +4,36 @@ import { saveNeonSession, saveNeonCut } from '@/lib/neon';
 
 export const dynamic = 'force-dynamic';
 
+// 웹툰 스타일 기본 키워드 (모든 컷에 적용)
+const WEBTOON_BASE_STYLE = 'Korean webtoon artstyle, manhwa style, cinematic lighting, highly detailed lineart, dynamic composition, 8k resolution, cell shading, vivid colors, professional illustration';
+const NEGATIVE_PROMPT = encodeURIComponent('flat colors, simple background, low quality, bad anatomy, ugly, blurry, sketch, rough lines, monochrome, grayscale, deformed, disfigured');
+
 // 20개 각 컷별 고유 시각적 장면 프롬프트 템플릿
 const SCENE_PROMPTS = [
   // 1-5 기 (도입)
-  'young student waking up in cozy bedroom, soft morning sunlight streaming through window, peaceful dawn, blankets, detailed anime room interior',
-  'young student jumping out of bed, stretching arms with energized smile, messy morning hair, bright cozy bedroom, anime illustration',
-  'young student walking through hallway, looking curious towards kitchen door, warm morning indoor lighting, clean anime lines',
-  'young student getting dressed in neat casual clothes, putting on backpack, ready for the day, bright morning daylight',
-  'warm cozy kitchen dining table with delicious breakfast dishes, steaming soup and rice, inviting home atmosphere',
+  'young Korean student waking up in cozy bedroom, soft golden morning sunlight streaming through curtains, peaceful dawn atmosphere, detailed webtoon room interior, warm pastel tones',
+  'young Korean student jumping out of bed, stretching arms with energized bright smile, messy morning hair, vibrant cozy bedroom background, expressive anime face',
+  'young Korean student walking through home hallway, glancing curiously towards kitchen, warm indoor morning light, clean precise lineart, detailed domestic setting',
+  'young Korean student putting on school uniform, adjusting necktie, slinging backpack over shoulder, bright morning energy, dynamic pose, school preparation scene',
+  'cozy Korean home kitchen, steaming rice and soup on dining table, morning breakfast spread, warm golden light, inviting homey atmosphere, detailed food illustration',
   // 6-10 승 (전개)
-  'young student eating warm breakfast happily with mother smiling warmly across dining table, heartwarming family moment, anime style',
-  'student tying shoelaces at front entrance door, opening door to sunny day outside, fresh morning breeze',
-  'student walking along tree-lined city sidewalk in morning sunlight, green trees, blue sky with soft white clouds, peaceful street',
-  'crowded city bus stop with students and commuters waiting, student looking at watch, morning commute, vibrant urban street',
-  'blue city bus arriving at bus stop with doors opening, passengers stepping forward, dynamic urban street perspective',
+  'young Korean student eating warm breakfast with smiling mother, heartwarming family moment at kitchen table, wholesome interaction, soft warm lighting, expressive characters',
+  'student at front door putting on shoes, opening door to reveal bright sunny morning street, fresh breeze effect lines, sense of departure and excitement',
+  'student walking along Korean city sidewalk lined with cherry blossom trees, morning golden sunlight, vibrant blue sky, peaceful urban street, detailed background',
+  'crowded Korean city bus stop, students and commuters waiting, student checking wristwatch nervously, dynamic urban street scene, busy morning atmosphere',
+  'blue Korean city bus arriving at stop with doors sliding open, passengers rushing forward, dramatic perspective angle, motion blur effects, urban energy',
   // 11-15 전 (위기 및 절정)
-  'inside crowded city bus, passengers holding yellow handrails, student standing, dramatic sunlight through bus windows, anime scene',
-  'sudden bus turn, passengers swaying, dynamic camera angle, tension inside the city bus, action anime atmosphere',
-  'close-up dramatic moment of shoe accidentally stepping on foot, student wincing with surprised reaction, dynamic anime perspective',
-  'cute anime schoolgirl turning around in shock, apologetic wide eyes, blushing in embarrassment, cute manhwa face',
-  'two students making eye contact inside bus, intense shared moment of surprise and realization, sparkling anime lighting',
+  'inside packed city bus interior, passengers gripping yellow overhead handrails, student standing, dramatic slanted sunlight through bus windows, crowded atmosphere',
+  'bus making sharp sudden turn, passengers lurching dramatically, speed lines and motion effects, tension and chaos inside city bus, dynamic action composition',
+  'extreme close-up dramatic moment: shoe accidentally stepping on another foot, pained expression, shock ripple effects, dramatic impact lines, intense manga close-up',
+  'cute Korean schoolgirl whipping around in shock, wide surprised eyes, flushed blushing cheeks, apologetic expression, detailed expressive manhwa face, emotional moment',
+  'two students locking eyes in bus interior, electric tension between them, sparkling shoujo manga eye effects, dramatic lighting, emotional connection moment',
   // 16-20 결 (결말 및 여운)
-  'schoolgirl bowing politely with hands clasped saying sorry, sweet apologetic smile, charming anime expression',
-  'student smiling kindly waving hand in reassurance, friendly and understanding expression, gentle warm morning glow',
-  'two students chatting pleasantly standing side by side on bus, budding friendship, gentle sunlight through window',
-  'two students stepping off bus at school bus stop together, smiling at each other under bright blue sky',
-  'students walking together towards school gate in golden morning light, hopeful peaceful ending, beautiful anime artwork, masterpiece',
+  'Korean schoolgirl bowing deeply with clasped hands, heartfelt sincere apology, sweet embarrassed smile, warm soft lighting, expressive emotional face, charming scene',
+  'kind Korean student waving hand reassuringly with gentle warm smile, understanding expression, soft golden backlight halo effect, heartwarming resolution',
+  'two Korean students standing side by side on bus chatting warmly, budding new friendship, gentle window sunlight creating mood, relaxed happy expressions',
+  'two Korean students stepping off bus together at school stop, laughing under bright blue sky, sense of new connection, uplifting cheerful scene',
+  'two students walking together toward school gate in radiant golden morning light, cherry blossoms falling, hopeful romantic ending, masterpiece webtoon illustration',
 ];
 
 export async function GET(request: NextRequest) {
@@ -135,11 +139,12 @@ export async function GET(request: NextRequest) {
       // 1. 20개 각 컷마다 100% 서로 다른 고유한 Pollinations.ai 프롬프트 및 시드 생성
       const sceneDetail = SCENE_PROMPTS[(cutNum - 1) % SCENE_PROMPTS.length];
       const cutSeed = (baseSeed + cutNum * 719) % 999999;
-      const cleanPrompt = `anime webtoon style, ${sceneDetail}, masterpiece, vibrant aesthetic, highly detailed`;
+      // 웹툰 스타일 키워드를 결합한 고품질 프롬프트
+      const cleanPrompt = `${WEBTOON_BASE_STYLE}, ${sceneDetail}, masterpiece, best quality`;
       const encodedPrompt = encodeURIComponent(cleanPrompt);
 
-      // Pollinations.ai 무료 API (sana 모델 적용)
-      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=600&height=800&nologo=true&seed=${cutSeed}&model=sana`;
+      // Pollinations.ai 무료 API (sana 모델 + enhance + negative prompt 적용)
+      const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=600&height=800&nologo=true&seed=${cutSeed}&model=sana&enhance=true&negative=${NEGATIVE_PROMPT}`;
 
       // 2. 20개 각 컷마다 100% 서로 다른 고유한 SVG 일러스트 Data URI 생성 (오프라인/폴백용)
       const dataUri = generateWebtoonCutDataUri({
