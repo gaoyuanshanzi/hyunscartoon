@@ -24,6 +24,7 @@ function getThemeForCut(cut: WebtoonCutInput) {
   const { cut_index, phase, scene_summary, scene_title, genre = 'drama' } = cut;
   const combined = `${scene_title} ${scene_summary} ${genre}`;
 
+  const isSaint = /성자|어거스틴|아우구스티누스|히포|신학|기도|성당|교회|신앙|모니카|타가스테|고백록/i.test(combined);
   const isNight = /밤|새벽|어둠|달|별|야경/i.test(combined);
   const isSunset = /노을|석양|황혼|일몰/i.test(combined);
   const isRain = /비|우산|빗방울|소나기/i.test(combined);
@@ -32,6 +33,17 @@ function getThemeForCut(cut: WebtoonCutInput) {
   const isClimax = phase.includes('전') || /위기|충돌|갈등|경악|놀라|위험|절망/i.test(combined);
   const isEnding = phase.includes('결') || /결말|미래|희망|새로운|약속|함께/i.test(combined);
 
+  if (isSaint) {
+    return {
+      sky: '#451A03',
+      mid: '#78350F',
+      bg: '#0F172A',
+      accent: '#F59E0B',
+      dark: true,
+      sfx: '은은한 촛불과 성스러운 빛...',
+      type: 'saint',
+    };
+  }
   if (isClimax) {
     return {
       sky: '#3B0764',
@@ -126,22 +138,44 @@ function renderStoryVisualScene(cut: WebtoonCutInput, theme: ReturnType<typeof g
   const { scene_summary, scene_title, genre = 'drama', isFemale } = cut;
   const combined = `${scene_title} ${scene_summary} ${genre}`;
 
+  const isSaint = /성자|어거스틴|아우구스티누스|히포|신학|기도|성당|교회|신앙|모니카|타가스테|고백록/i.test(combined);
   const isCafe = /카페|커피|바리스타|머그|잔/i.test(combined);
   const isBook = /책|소설|도서관|독서|선물|노트북|글/i.test(combined);
   const isMagic = /마법|마법사|탑|판타지|환상|빛|씨앗/i.test(combined) || genre === 'fantasy';
   const isRain = /비|우산|빗방울|빗길/i.test(combined);
   const isClimax = cut.phase.includes('전') || /위기|충돌|갈등|경악|놀라/i.test(combined);
 
-  // 캐릭터 기본 렌더링 (남/여)
+  // 캐릭터 기본 렌더링 (남/여/성자)
   const charX = 384;
   const charY = 560;
-  const skin = isFemale ? '#FFD5B8' : '#FFD0A0';
-  const hair = isFemale ? '#2A1810' : '#1A1A24';
-  const cloth = isFemale ? '#DB2777' : '#2563EB';
+  const skin = isSaint ? '#F5D0A9' : (isFemale ? '#FFD5B8' : '#FFD0A0');
+  const hair = isSaint ? '#3E2723' : (isFemale ? '#2A1810' : '#1A1A24');
+  const cloth = isSaint ? '#451A03' : (isFemale ? '#DB2777' : '#2563EB');
 
   let sceneDetails = '';
 
-  if (isCafe) {
+  if (isSaint) {
+    // ⛪ 고대 성자 / 어거스틴 신학 서재 씬 일러스트
+    sceneDetails = `
+      <!-- 고대 석조 아치 창문과 천상의 빛줄기 -->
+      <path d="M 200,480 L 200,240 Q 384,120 568,240 L 568,480 Z" fill="#FDE68A" fill-opacity="0.15" stroke="#B45309" stroke-width="4" />
+      <line x1="384" y1="160" x2="384" y2="480" stroke="#B45309" stroke-width="3" opacity="0.6" />
+      <!-- 거룩한 십자가 실루엣 -->
+      <line x1="384" y1="200" x2="384" y2="340" stroke="#F59E0B" stroke-width="6" stroke-linecap="round" />
+      <line x1="330" y1="245" x2="438" y2="245" stroke="#F59E0B" stroke-width="6" stroke-linecap="round" />
+      <!-- 천상에서 쏟아지는 빛줄기 -->
+      <polygon points="384,140 240,540 528,540" fill="#FEF08A" opacity="0.15" />
+      <!-- 은은한 촛대와 촛불 -->
+      <rect x="180" y="420" width="12" height="60" fill="#92400E" />
+      <circle cx="186" cy="410" r="10" fill="#F59E0B" opacity="0.9" />
+      <circle cx="186" cy="406" r="5" fill="#FEF08A" />
+      <!-- 고대 원목 책상과 양피지 성경 두루마리 -->
+      <ellipse cx="384" cy="740" rx="310" ry="85" fill="#3E2723" stroke="#1F130B" stroke-width="5" />
+      <rect x="290" y="660" width="188" height="50" rx="4" fill="#FDF6B2" stroke="#B45309" stroke-width="2" transform="rotate(-3 384 685)" />
+      <line x1="310" y1="675" x2="460" y2="675" stroke="#78350F" stroke-width="2" stroke-dasharray="8 4" />
+      <line x1="310" y1="690" x2="440" y2="690" stroke="#78350F" stroke-width="2" stroke-dasharray="8 4" />
+    `;
+  } else if (isCafe) {
     // ☕ 카페 씬 일러스트
     sceneDetails = `
       <!-- 카페 창문과 전등 -->
@@ -259,13 +293,26 @@ function renderStoryVisualScene(cut: WebtoonCutInput, theme: ReturnType<typeof g
       <circle cx="-11" cy="-97" r="2.5" fill="#FFFFFF" />
       <ellipse cx="13" cy="-94" rx="7" ry="8" fill="#0F172A" />
       <circle cx="15" cy="-97" r="2.5" fill="#FFFFFF" />
-      <!-- 볼터치 -->
-      <ellipse cx="-20" cy="-84" rx="8" ry="5" fill="#FDA4AF" opacity="0.6" />
-      <ellipse cx="20" cy="-84" rx="8" ry="5" fill="#FDA4AF" opacity="0.6" />
-      <!-- 부드러운 미소 -->
-      <path d="M -9,-74 Q 0,-68 9,-74" stroke="#991B1B" stroke-width="2" fill="none" stroke-linecap="round" />
-      <!-- 상의 의상 -->
+      <!-- 볼터치 (일반) 또는 수염 (성자) -->
+      ${isSaint ? `
+        <!-- 성자의 단정한 턱수염 및 구레나룻 -->
+        <path d="M -24,-80 Q 0,-56 24,-80 Q 20,-48 0,-44 Q -20,-48 -24,-80 Z" fill="#3E2723" opacity="0.9" />
+        <!-- 사색적인 눈썹 -->
+        <path d="M -22,-104 Q -12,-108 -4,-102" stroke="#271510" stroke-width="2.5" fill="none" />
+        <path d="M 4,-102 Q 12,-108 22,-104" stroke="#271510" stroke-width="2.5" fill="none" />
+      ` : `
+        <ellipse cx="-20" cy="-84" rx="8" ry="5" fill="#FDA4AF" opacity="0.6" />
+        <ellipse cx="20" cy="-84" rx="8" ry="5" fill="#FDA4AF" opacity="0.6" />
+      `}
+      <!-- 부드러운 미소 / 진중한 표정 -->
+      <path d="M -9,-74 Q 0,-68 9,-74" stroke="${isSaint ? '#3E2723' : '#991B1B'}" stroke-width="2" fill="none" stroke-linecap="round" />
+      <!-- 상의 의상 (성자 로브 또는 현대 의상) -->
       <path d="M -36,-52 L -48,40 L 48,40 L 36,-52 Z" fill="${cloth}" stroke="${hair}" stroke-width="2" />
+      ${isSaint ? `
+        <!-- 로브 옷깃 및 숄 -->
+        <path d="M -36,-52 L 0,-20 L 36,-52" stroke="#F59E0B" stroke-width="3" fill="none" />
+        <line x1="0" y1="-20" x2="0" y2="40" stroke="#F59E0B" stroke-width="2.5" />
+      ` : ''}
     </g>
   `;
 

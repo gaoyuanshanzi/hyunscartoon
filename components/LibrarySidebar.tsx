@@ -111,8 +111,7 @@ export default function LibrarySidebar({ onLoadSession }: Props) {
         dialogue: c.dialogue || '',
         speaker: c.speaker || '',
         scene_summary: c.scene_summary || '',
-        image_url: c.image_url || '',
-        fallback_url: undefined,
+        fallback_url: `/api/image?cut=${c.cut_index}&title=${encodeURIComponent(c.scene_title || '')}&summary=${encodeURIComponent(c.scene_summary || '')}&speaker=${encodeURIComponent(c.speaker || '')}&dialogue=${encodeURIComponent(c.dialogue || '')}&genre=${encodeURIComponent(session.genre || 'drama')}&phase=${encodeURIComponent(c.phase || '')}`,
       }));
       onLoadSession(cuts, session.title, sessionId);
       showToast(`✅ "${session.title}" 불러오기 완료!`);

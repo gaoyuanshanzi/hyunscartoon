@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Download, ZoomIn, ZoomOut, MessageSquare, MessageSquareOff, Share2, Check, Cloud, HardDrive, X, Loader2 } from 'lucide-react';
 import type { CutData } from './StudioPage';
 
@@ -23,6 +23,12 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
   const [exportStatus, setExportStatus] = useState('');
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
+
+  // 세션 또는 컷이 변경되면 이전 이미지 로딩/실패 캐시 완전 초기화
+  React.useEffect(() => {
+    setLoadedImages({});
+    setFailedImages({});
+  }, [sessionId, cuts]);
 
   const sortedCuts = [...cuts].sort((a, b) => a.cut_index - b.cut_index);
 
@@ -60,8 +66,8 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
         const fallbackImg = cut.fallback_url ? getFullUrl(cut.fallback_url) : '';
 
         return `
-        <div style="border-bottom: 2px solid #e2e8f0; background: #ffffff; position: relative; margin-bottom: 8px;">
-          <div style="position: relative; background: #0f172a; min-height: 400px; display: flex; justify-content: center; align-items: center;">
+        <div style="border-bottom: 2px solid #e2e8f0; background: #ffffff; position: relative; margin-bottom: 12px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+          <div style="position: relative; background: #0f172a; min-height: 400px; display: flex; justify-content: center; align-items: center; overflow: hidden;">
             <img 
               src="${fullImg}" 
               alt="${cut.scene_title}" 
@@ -69,6 +75,31 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
               style="width: 100%; height: auto; display: block; max-width: 800px;" 
               ${fallbackImg ? `onerror="if (!this.dataset.retried) { this.dataset.retried = '1'; this.src = '${fallbackImg}'; }"` : ''}
             />
+            <!-- 상단 컷 뱃지 오버레이 -->
+            <div style="position: absolute; top: 14px; left: 14px; display: flex; gap: 6px; z-index: 10;">
+              <span style="background: rgba(0,0,0,0.8); color: #ffffff; font-size: 11px; font-weight: 900; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                #${String(cut.cut_index).padStart(2, '0')}
+              </span>
+              <span style="background: #4f46e5; color: #ffffff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px;">
+                ${cut.phase || ''}
+              </span>
+            </div>
+            <!-- 이미지 위 만화 말풍선 오버레이 -->
+            ${
+              cut.dialogue
+                ? `
+            <div style="position: absolute; bottom: 20px; ${cut.cut_index % 2 === 0 ? 'left: 20px;' : 'right: 20px;'} max-width: 78%; z-index: 10;">
+              <div style="background: rgba(255,255,255,0.96); border: 2.5px solid #0f172a; border-radius: 16px; padding: 12px 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative;">
+                <div style="display: inline-block; background: #eef2ff; color: #4338ca; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px; margin-bottom: 4px; border: 1px solid #c7d2fe;">
+                  💬 ${cut.speaker || '인물'}
+                </div>
+                <p style="font-size: 14px; font-weight: 700; color: #09090b; margin: 0; line-height: 1.4;">
+                  &ldquo;${cut.dialogue}&rdquo;
+                </p>
+              </div>
+            </div>`
+                : ''
+            }
           </div>
           <div style="padding: 16px 20px; background: #ffffff; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
             <div style="flex: 1;">
@@ -313,6 +344,7 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
                     )}
 
                     <img
+                      key={`${sessionId}_${cut.cut_index}_${cut.image_url}`}
                       src={displayUrl}
                       alt={cut.scene_title}
                       className={`w-full h-auto block transition-opacity duration-300 ${isLoaded || isFailed ? 'opacity-100' : 'opacity-30'}`}
@@ -321,8 +353,50 @@ export default function WebtoonViewer({ cuts, title, sessionId, onBack }: Props)
                       onError={() => handleImageError(cut.cut_index)}
                     />
 
+                    {/* 컷 상단 뱃지 오버레이 (웹툰 스타일) */}
+                    <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 pointer-events-none z-20">
+                      <span className="bg-black/80 backdrop-blur-md text-white text-[11px] font-black px-2.5 py-1 rounded-lg border border-white/20 shadow-md">
+                        #{String(cut.cut_index).padStart(2, '0')}
+                      </span>
+                      <span className="bg-indigo-600/90 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-md">
+                        {cut.phase}
+                      </span>
+                    </div>
+
+                    {/* 웹툰 그림 위 말풍선 오버레이 (Speech Bubble Overlay) */}
+                    {showBubble && cut.dialogue && (
+                      <div
+                        className={`absolute bottom-5 z-20 max-w-[78%] transition-all duration-200 ${
+                          cut.cut_index % 2 === 0 ? 'left-5' : 'right-5'
+                        }`}
+                      >
+                        <div className="relative bg-white/95 backdrop-blur-sm border-[2.5px] border-gray-900 rounded-2xl px-4 py-3 shadow-2xl">
+                          {/* 화자 뱃지 */}
+                          <div className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full mb-1.5">
+                            <span>💬</span>
+                            <span>{cut.speaker || '인물'}</span>
+                          </div>
+                          {/* 대사 내용 */}
+                          <p className="text-[13px] md:text-sm font-bold text-gray-950 leading-snug tracking-tight">
+                            &ldquo;{cut.dialogue}&rdquo;
+                          </p>
+                          {/* 말풍선 꼬리 (Speech Bubble Tail) */}
+                          <div
+                            className={`absolute -bottom-2.5 w-0 h-0 border-solid border-t-[10px] border-t-gray-900 border-x-[8px] border-x-transparent border-b-0 ${
+                              cut.cut_index % 2 === 0 ? 'left-6' : 'right-6'
+                            }`}
+                          />
+                          <div
+                            className={`absolute -bottom-2 w-0 h-0 border-solid border-t-[8px] border-t-white border-x-[6px] border-x-transparent border-b-0 ${
+                              cut.cut_index % 2 === 0 ? 'left-[26px]' : 'right-[26px]'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {/* 개별 컷 다운로드 버튼 */}
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <div className="absolute top-3.5 right-3.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <button
                         onClick={() => handleDownloadSingle(cut)}
                         className="bg-black/70 hover:bg-black text-white p-2.5 rounded-xl shadow-lg backdrop-blur-md transition-all flex items-center gap-1.5 text-xs font-medium"

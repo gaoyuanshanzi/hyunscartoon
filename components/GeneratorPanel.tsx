@@ -650,7 +650,17 @@ export default function GeneratorPanel({
                     >
                       {cut ? (
                         <>
-                          <img src={imgSrc} alt={cut.scene_title} className="w-full h-full object-cover pop-in" />
+                          <img
+                            key={`${sessionId}_${cut.cut_index}_${cut.image_url}`}
+                            src={imgSrc}
+                            alt={cut.scene_title}
+                            className="w-full h-full object-cover pop-in"
+                            onError={(e) => {
+                              if (cut.fallback_url && (e.target as HTMLImageElement).src !== cut.fallback_url) {
+                                (e.target as HTMLImageElement).src = cut.fallback_url;
+                              }
+                            }}
+                          />
                           <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-indigo-600 rounded-sm flex items-center justify-center shadow">
                             <CheckCircle className="w-3 h-3 text-white" />
                           </div>

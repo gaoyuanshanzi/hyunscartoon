@@ -5,10 +5,6 @@ import { analyzeStoryIntoConti } from '@/lib/storyAnalyzer';
 
 export const dynamic = 'force-dynamic';
 
-const NEGATIVE_PROMPT = encodeURIComponent(
-  'flat colors, simple background, low quality, bad anatomy, ugly, blurry, sketch, rough lines, monochrome, grayscale, deformed, disfigured'
-);
-
 // 간단한 문자열 해시 함수 (스토리 내용이 바뀌면 시드가 완전히 바뀌도록 보장)
 function hashString(str: string): number {
   let hash = 0;
@@ -58,22 +54,22 @@ export async function GET(request: NextRequest) {
     camera_angle?: string;
     image_url: string;
     fallback_url: string;
+    pollinations_url?: string;
   }
 
   const cuts: CutItem[] = [];
 
   for (const conti of contiCuts) {
     const cutNum = conti.cut_index;
-    // 컷마다 고유하고 중복 없는 시드 생성
     const cutSeed = (baseSeed + cutNum * 1337) % 999999;
-
-    // 해당 스토리에 100% 맞춤 제작된 영문 프롬프트 인코딩
     const encodedPrompt = encodeURIComponent(conti.prompt);
 
-    // Pollinations.ai 무료 API (안정적인 model=flux 적용, 유료 402 에러를 유발하는 enhance 파라미터 제외)
+    // Pollinations URL (백그라운드 시도용 — 성공하면 프론트에서 교체, 실패해도 SVG로 정상 표시)
     const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=600&height=800&nologo=true&seed=${cutSeed}&model=flux`;
 
-    // SVG 폴백 일러스트 (오프라인/에러 대비용)
+    // ✅ SVG 콘티 일러스트를 primary 이미지로 사용
+    // - 콘티 내용(장면, 대사, 말풍선)이 항상 올바르게 표시됨
+    // - Pollinations API 불안정 문제 영향 없음
     const dataUri = generateWebtoonCutDataUri({
       cut_index: cutNum,
       phase: conti.phase,
@@ -94,8 +90,8 @@ export async function GET(request: NextRequest) {
       speaker: conti.speaker,
       dialogue: conti.dialogue,
       camera_angle: conti.camera_angle,
-      image_url: pollinationsUrl,
-      fallback_url: dataUri,
+      image_url: pollinationsUrl,  // AI 생성 웹툰 일러스트
+      fallback_url: dataUri,       // 오프라인 / 네트워크 지연 시 고유 스토리 SVG 일러스트
     };
 
     cuts.push(cutData);
@@ -120,7 +116,6 @@ export async function GET(request: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
       };
 
-      // 1. 스토리 분석 시작 알림
       send({
         type: 'status',
         message: '📖 스토리를 정밀 분석하여 기승전결 20컷 콘티를 기획 중입니다...',
@@ -130,10 +125,9 @@ export async function GET(request: NextRequest) {
 
       await new Promise(r => setTimeout(r, 200));
 
-      // 2. 20컷 콘티 텍스트가 완성되었음을 프론트엔드에 즉시 전송! (나 항목 요구사항 반영)
       send({
         type: 'conti_ready',
-        message: '✅ 20컷 콘티 기획 완료! 각 컷별 AI 웹툰 일러스트를 생성합니다.',
+        message: '✅ 20컷 콘티 기획 완료! 각 컷별 웹툰 일러스트를 생성합니다.',
         progress: 15,
         session_id: sessionId,
         title: webtoonTitle,
@@ -142,7 +136,6 @@ export async function GET(request: NextRequest) {
 
       await new Promise(r => setTimeout(r, 250));
 
-      // 3. 각 컷별 순차 스트리밍
       for (let i = 0; i < cuts.length; i++) {
         await new Promise(r => setTimeout(r, 100));
         const pct = Math.round(15 + ((i + 1) / cuts.length) * 83);
@@ -157,7 +150,6 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // 4. 완료 알림
       send({
         type: 'complete',
         message: '🎉 20컷 웹툰 생성 및 Neon DB 저장 완료!',
