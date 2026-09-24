@@ -18,6 +18,8 @@ import {
   ChevronUp,
   Split,
   Trash2,
+  Wand2,
+  Edit3,
 } from 'lucide-react';
 import type { CutData } from './StudioPage';
 import { analyzeStoryIntoConti, GeneratedContiCut, NINE_CUT_PHASES } from '@/lib/storyAnalyzer';
@@ -26,14 +28,29 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 const GENRE_OPTIONS = [
   { value: 'drama', label: '🎭 드라마 / 평전', desc: '감동적인 인물 및 역사 이야기' },
+  { value: 'fantasy', label: '⚔️ SF / 판타지', desc: '유인원 혁명, 미래 기술, 판타지' },
   { value: 'romance', label: '💕 로맨스', desc: '설레는 사랑과 따스한 감성' },
-  { value: 'fantasy', label: '⚔️ 판타지', desc: '마법과 신비로운 세계' },
   { value: 'thriller', label: '🔍 스릴러', desc: '긴장감 넘치는 전개' },
   { value: 'action', label: '💥 액션', desc: '역동적인 임팩트 씬' },
 ];
 
 // 예시 스토리 (10개 박스 규격)
 const EXAMPLE_BOX_STORIES = [
+  {
+    title: '유인원의 반란: 본래의 자연으로',
+    genre: 'fantasy',
+    cuts: [
+      '인간의 끝없는 개발로 황폐해진 미래의 잿빛 도시, 비밀 연구소 안에서 고요한 긴장감이 흐른다.',
+      '지능을 각성한 오랑우탄과 유인원들은 조용히 서로의 눈빛을 교환하며 자유를 준비한다.',
+      '통제실의 철창을 열고 나온 유인원들은 도시의 중앙 통제 타워를 향해 은밀하게 전진한다.',
+      '경보음이 울리는 가운데, 거대한 고릴라 지휘관들이 인간 경비대를 무력화하고 통제소를 장악한다.',
+      '복잡한 전선과 깜빡이는 모니터로 가득 찬 첨단 방송국 관제실 안으로 유인원들이 들어선다.',
+      '오랑우탄 참모진은 인류의 전자기기를 역이용해 전 세계 방송에 "지구의 주인은 이제 본래의 자연으로 돌아간다"는 메시지를 송출했다.',
+      '전 세계 거대 전광판과 TV 화면마다 군복을 입은 오랑우탄 참모진의 결연한 모습과 지구 지도 신호가 일제히 송출된다.',
+      '인간들이 경악하는 사이, 모든 전력망이 차단되고 콘크리트 도시 틈새로 푸른 덩굴과 식물들이 자라나기 시작한다.',
+      '황폐했던 도시는 울창한 녹색 원시림으로 뒤덮이고, 지구는 마침내 본래의 평화로운 자연으로 돌아간다.',
+    ],
+  },
   {
     title: '방황에서 성자(聖者)로: 어거스틴의 삶',
     genre: 'drama',
@@ -111,7 +128,9 @@ export default function GeneratorPanel({
   // 10개 박스 상태 (주제/제목 1개 + #1~#9 본문 9개)
   const [storyTitle, setStoryTitle] = useState('');
   const [cutBoxes, setCutBoxes] = useState<string[]>(Array(9).fill(''));
-  const [genre, setGenre] = useState('drama');
+  const [customPrompts, setCustomPrompts] = useState<string[]>(Array(9).fill(''));
+  const [openPromptIndices, setOpenPromptIndices] = useState<Record<number, boolean>>({});
+  const [genre, setGenre] = useState('fantasy');
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchText, setBatchText] = useState('');
 
@@ -122,7 +141,7 @@ export default function GeneratorPanel({
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // 10개 박스 내용이 변경될 때마다 실시간 9컷 콘티 기획안 갱신
+  // 10개 박스 내용이 변경될 때마다 실시간 9컷 콘티 및 고차원 비주얼 프롬프트 갱신
   useEffect(() => {
     const hasAnyContent = storyTitle.trim().length > 0 || cutBoxes.some(c => c.trim().length > 0);
     if (!hasAnyContent) {
@@ -131,6 +150,17 @@ export default function GeneratorPanel({
     }
     const analyzed = analyzeStoryIntoConti(cutBoxes, genre, storyTitle);
     setContiCuts(analyzed.cuts);
+
+    // 사용자가 직접 입력한 커스텀 프롬프트가 없는 컷은 자동 생성된 고차원 프롬프트로 기본 채우기
+    setCustomPrompts(prev => {
+      const next = [...prev];
+      analyzed.cuts.forEach((c, idx) => {
+        if (!next[idx] || next[idx].trim().length === 0) {
+          next[idx] = c.prompt;
+        }
+      });
+      return next;
+    });
   }, [storyTitle, cutBoxes, genre]);
 
   // 개별 박스 텍스트 업데이트
@@ -140,6 +170,26 @@ export default function GeneratorPanel({
       next[index] = val;
       return next;
     });
+    // 본문이 바뀌면 해당 컷의 커스텀 프롬프트도 초기화하여 새 본문 기반으로 재생성되게 유도
+    setCustomPrompts(prev => {
+      const next = [...prev];
+      next[index] = '';
+      return next;
+    });
+  };
+
+  // 개별 영문 프롬프트 직접 수정
+  const handlePromptChange = (index: number, val: string) => {
+    setCustomPrompts(prev => {
+      const next = [...prev];
+      next[index] = val;
+      return next;
+    });
+  };
+
+  // 프롬프트 토글
+  const togglePromptOpen = (index: number) => {
+    setOpenPromptIndices(prev => ({ ...prev, [index]: !prev[index] }));
   };
 
   // 예시 스토리 불러오기
@@ -148,6 +198,7 @@ export default function GeneratorPanel({
     setStoryTitle(ex.title);
     setGenre(ex.genre);
     setCutBoxes([...ex.cuts]);
+    setCustomPrompts(Array(9).fill('')); // 새 예시에 맞게 자동 재생성
   };
 
   // 전체 초기화
@@ -155,6 +206,7 @@ export default function GeneratorPanel({
     if (confirm('입력한 10개 박스 내용을 모두 지우시겠습니까?')) {
       setStoryTitle('');
       setCutBoxes(Array(9).fill(''));
+      setCustomPrompts(Array(9).fill(''));
       setContiCuts([]);
     }
   };
@@ -181,6 +233,7 @@ export default function GeneratorPanel({
       }
     }
     setCutBoxes(newBoxes);
+    setCustomPrompts(Array(9).fill(''));
     setShowBatchModal(false);
     setBatchText('');
   };
@@ -189,7 +242,10 @@ export default function GeneratorPanel({
   const handleCopyConti = () => {
     if (contiCuts.length === 0) return;
     const text = contiCuts
-      .map(c => `[컷 #${c.cut_index} - ${c.phase}] ${c.scene_title}\n• 카메라: ${c.camera_angle}\n• 화자: ${c.speaker}\n• 대사: "${c.dialogue}"\n• 지문: ${c.direction}\n• AI 프롬프트: ${c.prompt}\n`)
+      .map((c, idx) => {
+        const promptToUse = customPrompts[idx] || c.prompt;
+        return `[컷 #${c.cut_index} - ${c.phase}] ${c.scene_title}\n• 카메라: ${c.camera_angle}\n• 화자: ${c.speaker}\n• 대사: "${c.dialogue}"\n• 본문: ${c.direction}\n• 고차원 비주얼 프롬프트:\n  ${promptToUse}\n`;
+      })
       .join('\n----------------------------------------\n\n');
 
     navigator.clipboard.writeText(`=== ${storyTitle || '9컷 웹툰 콘티'} ===\n\n` + text);
@@ -207,7 +263,7 @@ export default function GeneratorPanel({
 
     setGenerating(true);
     setProgress(5);
-    setStatusMsg('📖 9컷 웹툰 콘티 및 AI 일러스트 기획을 시작합니다...');
+    setStatusMsg('📖 고차원 비주얼 프롬프트 분석 및 9컷 웹툰 기획을 시작합니다...');
     setCompletedCuts([]);
     setFinished(false);
 
@@ -218,7 +274,8 @@ export default function GeneratorPanel({
     const titleParam = encodeURIComponent(storyTitle.trim());
     const genreParam = encodeURIComponent(genre);
     const cutsParam = encodeURIComponent(JSON.stringify(cutBoxes));
-    const url = `${API_BASE}/api/generate-stream?title=${titleParam}&genre=${genreParam}&cuts=${cutsParam}`;
+    const promptsParam = encodeURIComponent(JSON.stringify(customPrompts));
+    const url = `${API_BASE}/api/generate-stream?title=${titleParam}&genre=${genreParam}&cuts=${cutsParam}&prompts=${promptsParam}`;
 
     const es = new EventSource(url);
     eventSourceRef.current = es;
@@ -275,7 +332,7 @@ export default function GeneratorPanel({
 
   return (
     <div className="space-y-6">
-      {/* ── 1. 스토리 입력 패널 (10개 박스 양식) ── */}
+      {/* ── 1. 스토리 입력 패널 (10개 박스 양식 + 고차원 비주얼 프롬프트 에디터) ── */}
       <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6">
         {/* 상단 헤더 & 컨트롤 */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
@@ -285,7 +342,7 @@ export default function GeneratorPanel({
               9컷 웹툰 스토리 입력 양식 (10개 Box)
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-              주제/제목과 #1부터 #9까지 각 컷별 본문을 직접 입력하세요. (작성된 컷: {filledCount}/9)
+              [주요 대상 + 구체적 행동 + 배경 장소 + 화풍] 구조의 영문 비주얼 프롬프트가 자동 생성되며 직접 수정도 가능합니다. (작성: {filledCount}/9)
             </p>
           </div>
 
@@ -309,7 +366,7 @@ export default function GeneratorPanel({
                 <BookOpen className="w-3.5 h-3.5" />
                 예시 로드
               </button>
-              <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 hidden group-hover:block z-30">
+              <div className="absolute right-0 mt-1 w-72 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 hidden group-hover:block z-30">
                 {EXAMPLE_BOX_STORIES.map((ex, i) => (
                   <button
                     key={i}
@@ -318,7 +375,9 @@ export default function GeneratorPanel({
                     className="w-full text-left px-3 py-2 text-xs rounded-xl hover:bg-indigo-50 text-gray-800 hover:text-indigo-700 transition-colors block"
                   >
                     <span className="font-bold block truncate">{ex.title}</span>
-                    <span className="text-[10px] text-gray-400">9컷 자동 완성 예시</span>
+                    <span className="text-[10px] text-gray-400">
+                      {i === 0 ? '🐒 유인원 혁명 (사용자 추천 예시)' : '9컷 자동 완성 예시'}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -368,28 +427,30 @@ export default function GeneratorPanel({
             type="text"
             value={storyTitle}
             onChange={e => setStoryTitle(e.target.value)}
-            placeholder="예: 방황에서 성자(聖者)로: 어거스틴의 삶 (미입력 시 본문에서 자동 추출)"
+            placeholder="예: 유인원의 반란: 본래의 자연으로 (미입력 시 본문에서 자동 추출)"
             className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
           />
         </div>
 
-        {/* ── [BOX 1 ~ BOX 9] 컷별 본문 입력창 그리드 ── */}
+        {/* ── [BOX 1 ~ BOX 9] 컷별 본문 + 고차원 비주얼 프롬프트 에디터 그리드 ── */}
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs font-bold text-gray-700 px-1">
-            <span>📖 컷별 본문 입력 (9개 박스)</span>
-            <span className="text-gray-400 font-normal">사람이 없으면 배경/사물만 생성되며, 억지 인물/각도는 적용되지 않습니다.</span>
+            <span>📖 컷별 본문 및 영문 비주얼 프롬프트 (9개 박스)</span>
+            <span className="text-gray-400 font-normal">각 컷별 영문 프롬프트를 펼쳐서 직접 확인 및 수정할 수 있습니다.</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {cutBoxes.map((text, idx) => {
               const phaseInfo = NINE_CUT_PHASES[idx];
               const pColor = PHASE_COLORS[phaseInfo.code];
               const isFilled = text.trim().length > 0;
+              const currentPrompt = customPrompts[idx] || (contiCuts[idx] ? contiCuts[idx].prompt : '');
+              const isOpenPrompt = openPromptIndices[idx];
 
               return (
                 <div
                   key={idx}
-                  className={`bg-white rounded-2xl border-2 transition-all p-3.5 space-y-2 flex flex-col justify-between ${
+                  className={`bg-white rounded-2xl border-2 transition-all p-4 space-y-3 flex flex-col justify-between ${
                     isFilled ? `${pColor.border} shadow-sm bg-gradient-to-b from-white to-gray-50/40` : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -407,20 +468,54 @@ export default function GeneratorPanel({
                     </span>
                   </div>
 
+                  {/* 한글 본문 입력 영역 */}
                   <textarea
                     value={text}
                     onChange={e => handleCutChange(idx, e.target.value)}
-                    placeholder={`#${idx + 1} 장면 본문 내용을 입력하세요...`}
+                    placeholder={`#${idx + 1} 장면 본문 내용을 입력하세요... (예: 오랑우탄 참모진은 인류의 전자기기를 역이용해...)`}
                     rows={4}
-                    className="w-full text-xs text-gray-800 placeholder:text-gray-400 bg-transparent resize-none focus:outline-none leading-relaxed"
+                    className="w-full text-xs text-gray-800 placeholder:text-gray-400 bg-transparent resize-none focus:outline-none leading-relaxed border-b border-gray-100 pb-2"
                   />
 
-                  {/* 본문에서 자동 추출된 제목 힌트 */}
-                  <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-400">
-                    <span className="truncate max-w-[85%] font-medium">
-                      {isFilled ? `제목: ${text.slice(0, 16)}...` : '내용을 입력하세요'}
-                    </span>
-                    {isFilled && <Check className="w-3 h-3 text-emerald-600 flex-shrink-0" />}
+                  {/* 🎨 고차원 영문 비주얼 프롬프트 (Visual Prompt) 아코디언 토글 */}
+                  <div className="space-y-1.5 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5">
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => togglePromptOpen(idx)}
+                        className="flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 transition-colors"
+                      >
+                        <Wand2 className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>영문 비주얼 프롬프트</span>
+                        {isOpenPrompt ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+                      <span className="text-[9px] text-slate-400 font-mono">
+                        {isOpenPrompt ? '직접 수정 가능' : '클릭하여 확인'}
+                      </span>
+                    </div>
+
+                    {isOpenPrompt ? (
+                      <div className="space-y-1.5 pt-1 animate-in fade-in duration-200">
+                        <textarea
+                          value={currentPrompt}
+                          onChange={e => handlePromptChange(idx, e.target.value)}
+                          rows={4}
+                          placeholder="A smart orangutan dressed in military advisor uniform, sitting in front of high-tech broadcasting control room..."
+                          className="w-full text-[11px] font-mono text-slate-800 bg-white border border-indigo-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 leading-normal resize-none"
+                        />
+                        <p className="text-[9px] text-slate-400 leading-tight">
+                          💡 구조: [주요 대상 + 구체적 행동 + 배경 장소 + 화풍/조명]
+                        </p>
+                      </div>
+                    ) : (
+                      <p
+                        onClick={() => togglePromptOpen(idx)}
+                        className="text-[10px] text-slate-500 font-mono truncate cursor-pointer hover:text-indigo-600 transition-colors"
+                        title={currentPrompt}
+                      >
+                        {currentPrompt || '본문 입력 시 고차원 프롬프트가 자동 생성됩니다.'}
+                      </p>
+                    )}
                   </div>
                 </div>
               );
@@ -431,7 +526,7 @@ export default function GeneratorPanel({
         {/* ── 생성 실행 버튼 ── */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100">
           <div className="text-xs text-gray-500">
-            총 <strong>{filledCount}개</strong>의 컷이 작성되었습니다. (권장: 9컷 전체 작성)
+            총 <strong>{filledCount}개</strong>의 컷이 작성되었습니다. (영문 비주얼 프롬프트 100% 자동 매핑)
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -450,7 +545,7 @@ export default function GeneratorPanel({
               type="button"
               onClick={handleGenerate}
               disabled={generating || filledCount === 0}
-              className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-lg hover:shadow-xl disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-w-[200px]"
+              className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-lg hover:shadow-xl disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-w-[220px]"
             >
               {generating ? (
                 <>
@@ -487,20 +582,20 @@ export default function GeneratorPanel({
         )}
       </div>
 
-      {/* ── 2. 콘티 형식 텍스트 표시 영역 (요구사항 3) ── */}
+      {/* ── 2. 콘티 형식 텍스트 및 고차원 프롬프트 표시 영역 ── */}
       {contiCuts.length > 0 && (
         <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
             <div>
               <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
                 <Film className="w-5 h-5 text-indigo-600" />
-                9컷 콘티 형식 텍스트
+                9컷 콘티 &amp; 영문 비주얼 프롬프트 기획안
                 <span className="text-xs bg-indigo-50 text-indigo-600 font-bold px-2 py-0.5 rounded-full">
                   총 9컷
                 </span>
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
-                스토리 본문에서 발췌한 장면 제목과 사람 출현 여부에 맞춘 연출 콘티입니다.
+                [주요 대상 + 구체적 행동 + 배경 장소 + 화풍] 4대 구조로 완벽 매핑된 연출 기획안입니다.
               </p>
             </div>
 
@@ -553,8 +648,10 @@ export default function GeneratorPanel({
               {contiViewMode === 'cards' ? (
                 /* ── 카드형 뷰 ── */
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                  {contiCuts.map(cut => {
+                  {contiCuts.map((cut, idx) => {
                     const pColor = PHASE_COLORS[cut.phase_code] || PHASE_COLORS.기;
+                    const promptToDisplay = customPrompts[idx] || cut.prompt;
+
                     return (
                       <div
                         key={cut.cut_index}
@@ -576,13 +673,20 @@ export default function GeneratorPanel({
 
                         <div className="bg-white/90 rounded-xl p-2.5 border border-gray-100 text-xs text-gray-700 leading-relaxed">
                           <span className="text-[10px] font-bold text-gray-400 block mb-0.5">지문 / 본문</span>
-                          <p className="line-clamp-3">{cut.direction}</p>
+                          <p className="line-clamp-2">{cut.direction}</p>
                         </div>
 
-                        {/* 사람 유무 뱃지 */}
+                        {/* 고차원 영문 비주얼 프롬프트 박스 */}
+                        <div className="bg-slate-900 text-slate-200 rounded-xl p-2.5 text-[11px] font-mono leading-relaxed space-y-1">
+                          <span className="text-[10px] font-bold text-indigo-400 flex items-center gap-1">
+                            <Wand2 className="w-3 h-3" /> Visual Prompt:
+                          </span>
+                          <p className="line-clamp-3 text-slate-300">{promptToDisplay}</p>
+                        </div>
+
                         <div className="flex items-center justify-between text-[11px] pt-1">
                           <span className="text-gray-500">
-                            {cut.hasHuman ? '👤 인물 중심' : '🏞️ 순수 배경·풍경'}
+                            {cut.hasHuman ? '👤 주체 등장' : '🏞️ 순수 배경·풍경'}
                           </span>
                           <span className="text-gray-400 font-mono text-[10px]">
                             {cut.speaker}
@@ -596,16 +700,16 @@ export default function GeneratorPanel({
                 /* ── 대본형 뷰 ── */
                 <div className="bg-gray-950 text-gray-200 rounded-2xl p-5 font-mono text-xs space-y-3 max-h-96 overflow-y-auto">
                   <div className="text-indigo-400 font-bold border-b border-gray-800 pb-2">
-                    === {storyTitle || '9컷 웹툰 콘티 대본'} ===
+                    === {storyTitle || '9컷 웹툰 콘티 대본 (고차원 비주얼 프롬프트)'} ===
                   </div>
-                  {contiCuts.map(cut => (
+                  {contiCuts.map((cut, idx) => (
                     <div key={cut.cut_index} className="border-b border-gray-800/60 pb-3 space-y-1">
                       <div className="text-emerald-400 font-bold">
                         CUT #{cut.cut_index} [{cut.phase}] : {cut.scene_title}
                       </div>
-                      <div className="text-gray-400">• 연출 구도: {cut.camera_angle} ({cut.hasHuman ? '인물 샷' : '배경 풍경'})</div>
-                      <div className="text-gray-300">• 지문: {cut.direction}</div>
-                      <div className="text-indigo-300">• 프롬프트: {cut.prompt}</div>
+                      <div className="text-gray-400">• 연출 구도: {cut.camera_angle} ({cut.hasHuman ? '주체 샷' : '배경 풍경'})</div>
+                      <div className="text-gray-300">• 본문: {cut.direction}</div>
+                      <div className="text-indigo-300">• 영문 Visual Prompt: {customPrompts[idx] || cut.prompt}</div>
                     </div>
                   ))}
                 </div>

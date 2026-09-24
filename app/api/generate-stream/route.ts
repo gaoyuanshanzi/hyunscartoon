@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
   const story = searchParams.get('story') || '';
   const title = searchParams.get('title') || '';
   const cutsJson = searchParams.get('cuts') || '';
+  const promptsJson = searchParams.get('prompts') || '';
   const genre = searchParams.get('genre') || 'drama';
 
   let cutsInput: string[] | string = story;
@@ -32,6 +33,16 @@ export async function GET(request: NextRequest) {
     } catch {
       // JSON 파싱 실패 시 story 사용
     }
+  }
+
+  let customPrompts: string[] = [];
+  if (promptsJson) {
+    try {
+      const parsedPrompts = JSON.parse(promptsJson);
+      if (Array.isArray(parsedPrompts)) {
+        customPrompts = parsedPrompts;
+      }
+    } catch {}
   }
 
   // 10개 박스 중 최소 하나 이상의 텍스트가 있어야 함
@@ -51,6 +62,15 @@ export async function GET(request: NextRequest) {
   // 1. 스토리 정밀 분석 및 9컷 콘티 / 영문 비주얼 프롬프트 동적 생성
   const analyzed = analyzeStoryIntoConti(cutsInput, genre, title);
   const { webtoonTitle, mainChar, cuts: contiCuts } = analyzed;
+
+  // 사용자가 수동 편집한 프롬프트가 있다면 해당 컷에 덮어쓰기
+  if (customPrompts.length > 0) {
+    contiCuts.forEach((c, idx) => {
+      if (customPrompts[idx] && customPrompts[idx].trim().length > 0) {
+        c.prompt = customPrompts[idx].trim();
+      }
+    });
+  }
 
   const combinedContent = Array.isArray(cutsInput) ? cutsInput.join('\n') : story;
   const storyHash = hashString(combinedContent + title);
