@@ -8,6 +8,7 @@ export interface WebtoonCutInput {
   genre?: string;
   mainChar?: string;
   isFemale?: boolean;
+  hasHuman?: boolean;
 }
 
 // 텍스트 이스케이프
@@ -316,10 +317,10 @@ function renderStoryVisualScene(cut: WebtoonCutInput, theme: ReturnType<typeof g
     </g>
   `;
 
-  return sceneDetails + characterFigure;
+  return sceneDetails + (cut.hasHuman === false ? '' : characterFigure);
 }
 
-// 20개 각 컷별 고유 웹툰 SVG 생성
+// 9컷 각 컷별 고유 웹툰 SVG 생성
 export function generateWebtoonCutSvg(cut: WebtoonCutInput): string {
   const { cut_index, phase, scene_title, scene_summary, speaker, dialogue } = cut;
 

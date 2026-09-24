@@ -5,7 +5,6 @@ import { analyzeStoryIntoConti } from '@/lib/storyAnalyzer';
 
 export const dynamic = 'force-dynamic';
 
-// 간단한 문자열 해시 함수 (스토리 내용이 바뀌면 시드가 완전히 바뀌도록 보장)
 function hashString(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -19,10 +18,29 @@ function hashString(str: string): number {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const story = searchParams.get('story') || '';
+  const title = searchParams.get('title') || '';
+  const cutsJson = searchParams.get('cuts') || '';
   const genre = searchParams.get('genre') || 'drama';
 
-  if (!story || story.trim().length < 20) {
-    return new Response(JSON.stringify({ error: '스토리가 너무 짧습니다. 최소 20자 이상 입력하세요.' }), {
+  let cutsInput: string[] | string = story;
+  if (cutsJson) {
+    try {
+      const parsed = JSON.parse(cutsJson);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        cutsInput = parsed;
+      }
+    } catch {
+      // JSON 파싱 실패 시 story 사용
+    }
+  }
+
+  // 10개 박스 중 최소 하나 이상의 텍스트가 있어야 함
+  const hasContent = Array.isArray(cutsInput)
+    ? cutsInput.some(c => c && c.trim().length > 0)
+    : story.trim().length > 5;
+
+  if (!hasContent) {
+    return new Response(JSON.stringify({ error: '스토리를 입력하세요.' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -30,16 +48,16 @@ export async function GET(request: NextRequest) {
 
   const sessionId = 'session_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
 
-  // 1. 스토리 정밀 분석 및 20컷 콘티 / 영문 비주얼 프롬프트 동적 생성
-  const analyzed = analyzeStoryIntoConti(story, genre);
+  // 1. 스토리 정밀 분석 및 9컷 콘티 / 영문 비주얼 프롬프트 동적 생성
+  const analyzed = analyzeStoryIntoConti(cutsInput, genre, title);
   const { webtoonTitle, mainChar, cuts: contiCuts } = analyzed;
 
-  // 스토리가 바뀌면 시드가 완전히 달라지도록 스토리 해시 + 타임스탬프 결합
-  const storyHash = hashString(story);
+  const combinedContent = Array.isArray(cutsInput) ? cutsInput.join('\n') : story;
+  const storyHash = hashString(combinedContent + title);
   const baseSeed = (storyHash + (Date.now() % 100000)) % 900000 + 10000;
 
-  // Neon DB에 세션 저장
-  saveNeonSession(sessionId, webtoonTitle, genre, story).catch(e =>
+  // Neon DB에 세션 비동기 저장
+  saveNeonSession(sessionId, webtoonTitle, genre, combinedContent).catch(e =>
     console.error('[GenerateStream] Neon session save error:', e)
   );
 
@@ -54,7 +72,7 @@ export async function GET(request: NextRequest) {
     camera_angle?: string;
     image_url: string;
     fallback_url: string;
-    pollinations_url?: string;
+    hasHuman?: boolean;
   }
 
   const cuts: CutItem[] = [];
@@ -64,12 +82,10 @@ export async function GET(request: NextRequest) {
     const cutSeed = (baseSeed + cutNum * 1337) % 999999;
     const encodedPrompt = encodeURIComponent(conti.prompt);
 
-    // Pollinations URL (백그라운드 시도용 — 성공하면 프론트에서 교체, 실패해도 SVG로 정상 표시)
+    // Pollinations AI 고품질 생성 URL
     const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=600&height=800&nologo=true&seed=${cutSeed}&model=flux`;
 
-    // ✅ SVG 콘티 일러스트를 primary 이미지로 사용
-    // - 콘티 내용(장면, 대사, 말풍선)이 항상 올바르게 표시됨
-    // - Pollinations API 불안정 문제 영향 없음
+    // SVG 폴백 일러스트 (사람 유무 hasHuman 반영)
     const dataUri = generateWebtoonCutDataUri({
       cut_index: cutNum,
       phase: conti.phase,
@@ -79,6 +95,7 @@ export async function GET(request: NextRequest) {
       dialogue: conti.dialogue,
       genre,
       mainChar,
+      hasHuman: conti.hasHuman,
     });
 
     const cutData: CutItem = {
@@ -90,13 +107,14 @@ export async function GET(request: NextRequest) {
       speaker: conti.speaker,
       dialogue: conti.dialogue,
       camera_angle: conti.camera_angle,
-      image_url: pollinationsUrl,  // AI 생성 웹툰 일러스트
-      fallback_url: dataUri,       // 오프라인 / 네트워크 지연 시 고유 스토리 SVG 일러스트
+      image_url: pollinationsUrl,
+      fallback_url: dataUri,
+      hasHuman: conti.hasHuman,
     };
 
     cuts.push(cutData);
 
-    // Neon DB에 각 컷 비동기 저장
+    // Neon DB에 컷 저장
     saveNeonCut(sessionId, {
       cut_index: cutNum,
       phase: conti.phase,
@@ -108,7 +126,7 @@ export async function GET(request: NextRequest) {
     }).catch(e => console.error(`[GenerateStream] Error saving cut ${cutNum} to Neon:`, e));
   }
 
-  // SSE 스트리밍 응답
+  // SSE 스트리밍 응답 (총 9컷)
   const encoder = new TextEncoder();
   const customReadable = new ReadableStream({
     async start(controller) {
@@ -118,17 +136,18 @@ export async function GET(request: NextRequest) {
 
       send({
         type: 'status',
-        message: '📖 스토리를 정밀 분석하여 기승전결 20컷 콘티를 기획 중입니다...',
-        progress: 5,
+        message: '📖 10개 박스 스토리를 분석하여 9컷 콘티를 구성 중입니다...',
+        progress: 10,
         session_id: sessionId,
       });
 
       await new Promise(r => setTimeout(r, 200));
 
+      // 콘티 완료 알림
       send({
         type: 'conti_ready',
-        message: '✅ 20컷 콘티 기획 완료! 각 컷별 웹툰 일러스트를 생성합니다.',
-        progress: 15,
+        message: '✅ 9컷 콘티 기획 완료! 각 컷별 AI 웹툰 일러스트를 생성합니다.',
+        progress: 20,
         session_id: sessionId,
         title: webtoonTitle,
         conti_cuts: contiCuts,
@@ -136,15 +155,16 @@ export async function GET(request: NextRequest) {
 
       await new Promise(r => setTimeout(r, 250));
 
+      // 9컷 순차 스트리밍
       for (let i = 0; i < cuts.length; i++) {
-        await new Promise(r => setTimeout(r, 100));
-        const pct = Math.round(15 + ((i + 1) / cuts.length) * 83);
+        await new Promise(r => setTimeout(r, 120));
+        const pct = Math.round(20 + ((i + 1) / cuts.length) * 78);
         send({
           type: 'cut_done',
           cut_index: cuts[i].cut_index,
-          total: 20,
+          total: 9,
           progress: pct,
-          message: `🎨 ${i + 1}/20컷 [${cuts[i].phase}] ${cuts[i].scene_title} 준비 완료`,
+          message: `🎨 ${i + 1}/9컷 [${cuts[i].phase}] ${cuts[i].scene_title} 준비 완료`,
           session_id: sessionId,
           cut_data: cuts[i],
         });
@@ -152,7 +172,7 @@ export async function GET(request: NextRequest) {
 
       send({
         type: 'complete',
-        message: '🎉 20컷 웹툰 생성 및 Neon DB 저장 완료!',
+        message: '🎉 9컷 웹툰 생성 및 Neon DB 저장 완료!',
         progress: 100,
         session_id: sessionId,
         title: webtoonTitle,

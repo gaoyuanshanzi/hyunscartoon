@@ -68,7 +68,7 @@ export default function StudioPage({ token, onLogout }: Props) {
                 </div>
                 <div>
                   <h1 className="text-base font-bold text-gray-900 leading-tight">웹툰 스튜디오</h1>
-                  <p className="text-xs text-gray-400 leading-tight">AI 자동 20컷 웹툰 생성기 · Neon DB 연동</p>
+                  <p className="text-xs text-gray-400 leading-tight">AI 9컷 웹툰 스튜디오 · 10개 Box 스토리 양식 · Neon DB 연동</p>
                 </div>
               </div>
 

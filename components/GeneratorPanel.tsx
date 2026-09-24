@@ -3,11 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Sparkles,
-  ChevronDown,
-  ChevronUp,
   CheckCircle,
   Clock,
-  Image as ImgIcon,
   BookOpen,
   RefreshCw,
   Copy,
@@ -17,28 +14,55 @@ import {
   MessageSquare,
   FileText,
   SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  Split,
+  Trash2,
 } from 'lucide-react';
 import type { CutData } from './StudioPage';
-import { analyzeStoryIntoConti, GeneratedContiCut } from '@/lib/storyAnalyzer';
+import { analyzeStoryIntoConti, GeneratedContiCut, NINE_CUT_PHASES } from '@/lib/storyAnalyzer';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 const GENRE_OPTIONS = [
-  { value: 'drama', label: '🎭 드라마', desc: '현실적인 감동 이야기' },
-  { value: 'romance', label: '💕 로맨스', desc: '설레는 사랑 이야기' },
-  { value: 'fantasy', label: '⚔️ 판타지', desc: '마법과 모험의 세계' },
+  { value: 'drama', label: '🎭 드라마 / 평전', desc: '감동적인 인물 및 역사 이야기' },
+  { value: 'romance', label: '💕 로맨스', desc: '설레는 사랑과 따스한 감성' },
+  { value: 'fantasy', label: '⚔️ 판타지', desc: '마법과 신비로운 세계' },
   { value: 'thriller', label: '🔍 스릴러', desc: '긴장감 넘치는 전개' },
-  { value: 'action', label: '💥 액션', desc: '역동적인 배틀 씬' },
+  { value: 'action', label: '💥 액션', desc: '역동적인 임팩트 씬' },
 ];
 
-const EXAMPLE_STORIES = [
+// 예시 스토리 (10개 박스 규격)
+const EXAMPLE_BOX_STORIES = [
   {
-    title: '도시의 카페 이야기',
-    text: `서울 홍대 골목의 작은 카페 '별빛'을 운영하는 28살 민우는 매일 아침 7시에 문을 열고 혼자 모든 일을 해낸다. 어느 날, 비를 피해 들어온 낯선 여자 지아가 카페에서 3시간 동안 노트북을 두드리며 소설을 썼다. 민우는 그녀의 커피잔이 빌 때마다 말없이 채워줬고, 지아는 고개 들어 미소를 지었다. 그것이 전부였다. 다음 날도, 그 다음 날도 지아는 같은 자리에 앉아 같은 시간을 보냈다. 어느 월요일 아침, 지아가 나타나지 않았다. 민우는 처음으로 카페 안이 이렇게 넓었다는 것을 알았다. 일주일이 지나 지아가 돌아왔을 때, 그녀의 손에는 두 권의 책이 있었다. 하나는 자신이 쓴 소설, 다른 하나는 선물. 민우는 그 책을 받아들고, 처음으로 먼저 말을 건넸다. "드시는 것 좀 시켜도 되겠어요? 오늘은 제가 직접 서빙하고 싶거든요."`,
+    title: '방황에서 성자(聖者)로: 어거스틴의 삶',
+    genre: 'drama',
+    cuts: [
+      '북아프리카 타가스테의 고요한 새벽, 이교도 아버지와 열성적인 기독교인 어머니 모니카 사이에서 아우구스티누스가 태어난다.',
+      '어린 어거스틴은 학문에 대한 비상한 재능을 보이며 지혜를 갈망하기 시작한다.',
+      '청년이 된 어거스틴은 카르타고로 유학을 떠나 화려한 도시의 수사학에 빠져들며 방황한다.',
+      '진리를 찾아 마니교에 심취했으나 공허함만 깊어지고, 어머니 모니카는 눈물로 아들을 위해 기도한다.',
+      '로마와 밀라노로 떠난 어거스틴은 성 암브로시우스 주교의 지성적인 설교를 듣고 깊은 충격을 받는다.',
+      '밀라노의 무화과나무 아래서 영혼의 고통으로 울부짖을 때, "집어 들고 읽으라(Tolle Lege)"는 아이들의 신비로운 노랫소리가 들린다.',
+      '성경을 펼쳐 로마서 13장을 읽는 순간, 의심의 어둠이 사라지고 마음속에 확실한 평화의 빛이 쏟아져 내린다.',
+      '어머니 모니카와 거룩한 기쁨을 나누고, 아프리카로 돌아와 히포의 주교로서 교회를 섬긴다.',
+      '인류 지성사의 영원한 고전 《고백록》과 《신의 도성》을 남기며, 성자는 평화롭게 영원의 빛 속으로 들어간다.',
+    ],
   },
   {
-    title: '마법사의 마지막 제자',
-    text: `왕국의 마지막 마법사 그레이는 천 년을 살아온 끝에 자신의 힘이 다해가고 있다는 것을 느꼈다. 그는 새벽안개 속에서 마법의 씨앗을 묻어두고 세상을 떠날 준비를 했다. 그런데 열두 살 소녀 카에라가 그의 탑에 찾아와 제자로 받아달라고 고집을 피웠다. 그레이는 거절했지만, 카에라는 매일 아침 빈자리에 꽃을 놓아두었다. 스무 번의 꽃다발 끝에, 그레이는 문을 열었다. 가르치는 동안 그레이는 카에라의 눈에서 천 년 전 자신의 눈빛을 보았다. 그리고 깨달았다—자신이 전수해야 할 것은 마법이 아니라 포기하지 않는 마음이었다. 그가 숨을 거두던 날, 카에라의 손에서 처음으로 진짜 빛이 피어났다.`,
+    title: '도시의 작은 카페 이야기',
+    genre: 'drama',
+    cuts: [
+      '서울 골목의 작은 카페, 아침 햇살이 창문을 비추고 그윽한 원두 향기가 가득 차오른다.',
+      '매일 아침 7시, 홀로 정갈하게 커피 머신을 닦으며 조용한 하루를 준비한다.',
+      '비 내리는 오후, 우산을 든 손님이 찾아와 창가 자리에 앉아 조용히 노트북을 펼친다.',
+      '비어가는 커피잔에 따뜻한 커피를 조용히 채워주고, 잔잔한 음악이 실내를 채운다.',
+      '매일 같은 자리에 앉아 글을 쓰는 손님과 묵묵히 공간을 지키는 시간들이 이어진다.',
+      '어느 비 오는 월요일 아침, 늘 켜져 있던 창가 자리의 조명이 비어 있다.',
+      '일주일 만에 다시 문이 열리고, 젖은 코트를 털며 환한 미소로 들어선다.',
+      '카운터 위에 놓인 선물 상자와 정성스레 묶인 한 권의 갓 인쇄된 소설책.',
+      '따뜻한 커피 두 잔을 마주 놓고 나누는 다정한 대화와 함께 새로운 내일이 시작된다.',
+    ],
   },
 ];
 
@@ -84,604 +108,566 @@ export default function GeneratorPanel({
   sessionId,
   setSessionId,
 }: Props) {
-  const [story, setStory] = useState('');
+  // 10개 박스 상태 (주제/제목 1개 + #1~#9 본문 9개)
+  const [storyTitle, setStoryTitle] = useState('');
+  const [cutBoxes, setCutBoxes] = useState<string[]>(Array(9).fill(''));
   const [genre, setGenre] = useState('drama');
-  const [showExample, setShowExample] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchText, setBatchText] = useState('');
+
   const [contiCuts, setContiCuts] = useState<GeneratedContiCut[]>([]);
   const [copiedConti, setCopiedConti] = useState(false);
   const [contiViewMode, setContiViewMode] = useState<'cards' | 'script'>('cards');
   const [showContiSection, setShowContiSection] = useState(true);
+
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  const wordCount = story.trim().split(/\s+/).filter(Boolean).length;
-  const charCount = story.length;
-
-  // 스토리 텍스트가 20자 이상 입력되면 자동으로 실시간 20컷 콘티 기획안 생성
+  // 10개 박스 내용이 변경될 때마다 실시간 9컷 콘티 기획안 갱신
   useEffect(() => {
-    if (story.trim().length >= 25 && !generating && contiCuts.length === 0) {
-      try {
-        const preview = analyzeStoryIntoConti(story, genre);
-        setContiCuts(preview.cuts);
-      } catch (_e) {
-        // 무시
-      }
-    }
-  }, [story, genre, generating, contiCuts.length]);
-
-  const handleGenerate = () => {
-    if (!story.trim() || story.trim().length < 25) {
-      alert('스토리 내용을 최소 25자 이상 입력해 주세요. (A4 반장~한 장 분량 권장)');
+    const hasAnyContent = storyTitle.trim().length > 0 || cutBoxes.some(c => c.trim().length > 0);
+    if (!hasAnyContent) {
+      setContiCuts([]);
       return;
     }
-    if (generating) return;
+    const analyzed = analyzeStoryIntoConti(cutBoxes, genre, storyTitle);
+    setContiCuts(analyzed.cuts);
+  }, [storyTitle, cutBoxes, genre]);
+
+  // 개별 박스 텍스트 업데이트
+  const handleCutChange = (index: number, val: string) => {
+    setCutBoxes(prev => {
+      const next = [...prev];
+      next[index] = val;
+      return next;
+    });
+  };
+
+  // 예시 스토리 불러오기
+  const handleLoadExample = (exampleIndex: number) => {
+    const ex = EXAMPLE_BOX_STORIES[exampleIndex];
+    setStoryTitle(ex.title);
+    setGenre(ex.genre);
+    setCutBoxes([...ex.cuts]);
+  };
+
+  // 전체 초기화
+  const handleClearAll = () => {
+    if (confirm('입력한 10개 박스 내용을 모두 지우시겠습니까?')) {
+      setStoryTitle('');
+      setCutBoxes(Array(9).fill(''));
+      setContiCuts([]);
+    }
+  };
+
+  // 일괄 텍스트 9등분 분배 적용
+  const handleApplyBatchSplit = () => {
+    if (!batchText.trim()) return;
+    const lines = batchText
+      .split(/(?<=[.!?\n])\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 2);
+
+    const newBoxes = Array(9).fill('');
+    if (lines.length >= 9) {
+      const step = lines.length / 9;
+      for (let i = 0; i < 9; i++) {
+        const start = Math.floor(i * step);
+        const end = Math.floor((i + 1) * step);
+        newBoxes[i] = lines.slice(start, end).join(' ');
+      }
+    } else {
+      for (let i = 0; i < 9; i++) {
+        newBoxes[i] = lines[i % lines.length] || '';
+      }
+    }
+    setCutBoxes(newBoxes);
+    setShowBatchModal(false);
+    setBatchText('');
+  };
+
+  // 콘티 텍스트 클립보드 복사
+  const handleCopyConti = () => {
+    if (contiCuts.length === 0) return;
+    const text = contiCuts
+      .map(c => `[컷 #${c.cut_index} - ${c.phase}] ${c.scene_title}\n• 카메라: ${c.camera_angle}\n• 화자: ${c.speaker}\n• 대사: "${c.dialogue}"\n• 지문: ${c.direction}\n• AI 프롬프트: ${c.prompt}\n`)
+      .join('\n----------------------------------------\n\n');
+
+    navigator.clipboard.writeText(`=== ${storyTitle || '9컷 웹툰 콘티'} ===\n\n` + text);
+    setCopiedConti(true);
+    setTimeout(() => setCopiedConti(false), 2000);
+  };
+
+  // 9컷 웹툰 생성 시작
+  const handleGenerate = async () => {
+    const hasAnyContent = cutBoxes.some(c => c.trim().length > 0);
+    if (!hasAnyContent) {
+      alert('#1~#9 박스 중 최소 하나 이상의 스토리 본문을 입력해 주세요.');
+      return;
+    }
 
     setGenerating(true);
-    setFinished(false);
+    setProgress(5);
+    setStatusMsg('📖 9컷 웹툰 콘티 및 AI 일러스트 기획을 시작합니다...');
     setCompletedCuts([]);
-    setProgress(0);
-    setStatusMsg('');
+    setFinished(false);
 
-    // 시작 전 즉시 클라이언트 측 콘티 분석 반영
-    try {
-      const initialAnalyzed = analyzeStoryIntoConti(story, genre);
-      setContiCuts(initialAnalyzed.cuts);
-    } catch (_e) {}
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
 
-    const params = new URLSearchParams({
-      story: story,
-      genre: genre,
-      session_token: token,
-    });
+    const titleParam = encodeURIComponent(storyTitle.trim());
+    const genreParam = encodeURIComponent(genre);
+    const cutsParam = encodeURIComponent(JSON.stringify(cutBoxes));
+    const url = `${API_BASE}/api/generate-stream?title=${titleParam}&genre=${genreParam}&cuts=${cutsParam}`;
 
-    const es = new EventSource(`${API_BASE}/api/generate-stream?${params.toString()}`);
+    const es = new EventSource(url);
     eventSourceRef.current = es;
 
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
+    const cutsAccumulator: CutData[] = [];
 
-        if (data.session_id) {
-          setSessionId(data.session_id);
-        }
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
 
         if (data.type === 'status') {
           setStatusMsg(data.message);
-          setProgress(data.progress || 0);
+          setProgress(data.progress || 10);
         } else if (data.type === 'conti_ready') {
-          // 서버에서 정밀 분석된 20컷 콘티 도착 (즉시 화면 표시)
-          if (data.conti_cuts && data.conti_cuts.length > 0) {
+          setStatusMsg(data.message);
+          setProgress(data.progress || 20);
+          if (data.conti_cuts) {
             setContiCuts(data.conti_cuts);
           }
-          setStatusMsg(data.message);
-          setProgress(data.progress || 15);
         } else if (data.type === 'cut_done') {
-          setProgress(data.progress);
           setStatusMsg(data.message);
-          setCompletedCuts((prev: CutData[]) => {
-            const updated = [...prev];
-            const idx = updated.findIndex((c) => c.cut_index === data.cut_data.cut_index);
-            if (idx >= 0) updated[idx] = data.cut_data;
-            else updated.push(data.cut_data);
-            return updated.sort((a, b) => a.cut_index - b.cut_index);
-          });
+          setProgress(data.progress);
+          const newCut: CutData = data.cut_data;
+          cutsAccumulator.push(newCut);
+          setCompletedCuts([...cutsAccumulator]);
         } else if (data.type === 'complete') {
+          setStatusMsg(data.message);
           setProgress(100);
-          setStatusMsg('🎉 20컷 웹툰 생성 및 Neon DB 저장 완료!');
-          setFinished(true);
           setGenerating(false);
-          if (data.conti_cuts) setContiCuts(data.conti_cuts);
-          onComplete(data.cuts || completedCuts, data.title || '웹툰', data.session_id);
+          setFinished(true);
+          const finalSessionId = data.session_id || 'session_' + Date.now();
+          setSessionId(finalSessionId);
+          onComplete(data.cuts || cutsAccumulator, data.title || storyTitle || '웹툰', finalSessionId);
           es.close();
         } else if (data.type === 'error') {
-          setStatusMsg(`❌ 오류: ${data.message}`);
+          setStatusMsg(`오류 발생: ${data.message}`);
           setGenerating(false);
           es.close();
         }
-      } catch (_err) {
-        // JSON 파싱 무시
+      } catch (err) {
+        console.error('SSE JSON parse error:', err);
       }
     };
 
     es.onerror = () => {
-      setStatusMsg('❌ 연결 오류. 다시 시도해 주세요.');
+      console.error('EventSource error occurred');
+      setStatusMsg('AI 생성 서버 통신 완료 또는 연결 종료');
       setGenerating(false);
       es.close();
     };
   };
 
-  const handleStop = () => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-    setGenerating(false);
-    setStatusMsg('⏹ 생성을 중단했습니다.');
-  };
-
-  const handleReset = () => {
-    setStory('');
-    setContiCuts([]);
-    setCompletedCuts([]);
-    setProgress(0);
-    setStatusMsg('');
-    setFinished(false);
-  };
-
-  // 20컷 콘티 전체 텍스트 복사
-  const handleCopyContiText = () => {
-    if (contiCuts.length === 0) return;
-    const textOutput = contiCuts
-      .map(
-        (c) =>
-          `[#${String(c.cut_index).padStart(2, '0')} ${c.phase}] ${c.scene_title}\n` +
-          `• 카메라 연출: ${c.camera_angle}\n` +
-          `• 지문/상황: ${c.direction}\n` +
-          (c.dialogue ? `• 대사 (${c.speaker}): "${c.dialogue}"\n` : '')
-      )
-      .join('\n----------------------------------------\n\n');
-
-    navigator.clipboard.writeText(textOutput);
-    setCopiedConti(true);
-    setTimeout(() => setCopiedConti(false), 2500);
-  };
+  const filledCount = cutBoxes.filter(c => c.trim().length > 0).length;
 
   return (
     <div className="space-y-6">
-      <div className="fade-in-up">
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">✍️ 웹툰 스토리 및 20컷 콘티 기획</h2>
-        <p className="text-gray-500 text-sm">
-          A4 반장~한 장 분량의 스토리를 입력하면, 기승전결 20컷 콘티 텍스트로 자동 정리되고 맞춤형 AI 일러스트가 생성됩니다.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 왼쪽: 스토리 입력 및 20컷 콘티 표시 패널 */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* 장르 선택 */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">🎨 웹툰 장르 선택</h3>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {GENRE_OPTIONS.map((g) => (
-                <button
-                  key={g.value}
-                  onClick={() => {
-                    setGenre(g.value);
-                    if (story.trim().length >= 25) {
-                      const updated = analyzeStoryIntoConti(story, g.value);
-                      setContiCuts(updated.cuts);
-                    }
-                  }}
-                  className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all text-center ${
-                    genre === g.value
-                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
-                      : 'border-gray-100 hover:border-gray-200 bg-gray-50 text-gray-600'
-                  }`}
-                >
-                  <span className="text-lg mb-0.5">{g.label.split(' ')[0]}</span>
-                  <span className="text-xs font-medium">{g.label.split(' ')[1]}</span>
-                </button>
-              ))}
-            </div>
+      {/* ── 1. 스토리 입력 패널 (10개 박스 양식) ── */}
+      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6">
+        {/* 상단 헤더 & 컨트롤 */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">✍️</span>
+              9컷 웹툰 스토리 입력 양식 (10개 Box)
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              주제/제목과 #1부터 #9까지 각 컷별 본문을 직접 입력하세요. (작성된 컷: {filledCount}/9)
+            </p>
           </div>
 
-          {/* 스토리 본문 입력 (A4 반장 정도 내용) */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-semibold text-gray-800">📝 원작 스토리 본문 (A4 반장 분량)</h3>
-              </div>
-              <button
-                onClick={() => setShowExample(!showExample)}
-                className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium"
-              >
-                예시 스토리 {showExample ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-            </div>
+          <div className="flex items-center gap-2">
+            {/* 전체 텍스트 일괄 배분 버튼 */}
+            <button
+              type="button"
+              onClick={() => setShowBatchModal(true)}
+              className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl transition-all font-semibold"
+            >
+              <Split className="w-3.5 h-3.5" />
+              통글 9컷 자동 배분
+            </button>
 
-            {showExample && (
-              <div className="mb-4 space-y-2">
-                {EXAMPLE_STORIES.map((ex) => (
-                  <div key={ex.title} className="border border-indigo-100 rounded-xl p-3.5 bg-indigo-50/50">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-indigo-800">{ex.title}</span>
-                      <button
-                        onClick={() => {
-                          setStory(ex.text);
-                          setShowExample(false);
-                          const analyzed = analyzeStoryIntoConti(ex.text, genre);
-                          setContiCuts(analyzed.cuts);
-                        }}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline"
-                      >
-                        이 스토리 불러오기
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">{ex.text}</p>
-                  </div>
+            {/* 예시 불러오기 */}
+            <div className="relative group">
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-xl transition-all font-medium"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                예시 로드
+              </button>
+              <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 hidden group-hover:block z-30">
+                {EXAMPLE_BOX_STORIES.map((ex, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => handleLoadExample(i)}
+                    className="w-full text-left px-3 py-2 text-xs rounded-xl hover:bg-indigo-50 text-gray-800 hover:text-indigo-700 transition-colors block"
+                  >
+                    <span className="font-bold block truncate">{ex.title}</span>
+                    <span className="text-[10px] text-gray-400">9컷 자동 완성 예시</span>
+                  </button>
                 ))}
               </div>
-            )}
-
-            <textarea
-              value={story}
-              onChange={(e) => {
-                const newStory = e.target.value;
-                setStory(newStory);
-                if (newStory.trim().length >= 25 && !generating) {
-                  try {
-                    const analyzed = analyzeStoryIntoConti(newStory, genre);
-                    setContiCuts(analyzed.cuts);
-                  } catch (_err) {}
-                } else if (newStory.trim().length === 0) {
-                  setContiCuts([]);
-                }
-              }}
-              placeholder={`여기에 A4 반장~한 장 분량의 스토리를 자유롭게 입력하세요...\n\n(이야기를 바꾸면 콘티와 20컷 웹툰 일러스트가 새로운 이야기에 맞춰 완전히 새로 생성됩니다)\n\n예시:\n"서울 홍대 골목의 작은 카페 '별빛'을 운영하는 28살 민우는 매일 아침 7시에 문을 열고 혼자 모든 일을 해낸다. 어느 날, 비를 피해 들어온 낯선 여자 지아가 카페에서 3시간 동안 노트북을 두드리며 소설을 썼다..."`}
-              disabled={generating}
-              className="w-full h-64 p-4 border border-gray-200 rounded-xl text-sm text-gray-800 bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all resize-none leading-relaxed placeholder:text-gray-400 disabled:opacity-60 font-sans"
-            />
-
-            <div className="flex items-center justify-between mt-2.5">
-              <div className="flex gap-3 text-xs text-gray-400">
-                <span className="font-mono">{charCount.toLocaleString()}자</span>
-                <span className="font-mono">{wordCount.toLocaleString()}단어</span>
-                {charCount > 0 && (
-                  <span
-                    className={`font-semibold ${
-                      charCount >= 100 && charCount <= 2500
-                        ? 'text-emerald-600'
-                        : charCount < 100
-                        ? 'text-amber-500'
-                        : 'text-indigo-600'
-                    }`}
-                  >
-                    {charCount < 100 ? '⚠ A4 반장 권장 (100자 이상)' : '✓ 적정 분량 (20컷 자동 기획 가능)'}
-                  </span>
-                )}
-              </div>
-              {story && (
-                <button
-                  onClick={() => {
-                    setStory('');
-                    setContiCuts([]);
-                  }}
-                  className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  본문 지우기
-                </button>
-              )}
             </div>
+
+            {/* 초기화 */}
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+              title="모두 지우기"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* 장르 선택 바 */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-gray-500 mr-2 flex items-center gap-1">
+            <SlidersHorizontal className="w-3.5 h-3.5" /> 장르:
+          </span>
+          {GENRE_OPTIONS.map(g => (
+            <button
+              key={g.value}
+              type="button"
+              onClick={() => setGenre(g.value)}
+              className={`text-xs px-3 py-1.5 rounded-xl border transition-all font-medium ${
+                genre === g.value
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── [BOX 0] 주제 / 제목 입력창 ── */}
+        <div className="bg-gradient-to-r from-indigo-50/70 via-purple-50/50 to-blue-50/70 p-4 rounded-2xl border-2 border-indigo-100/80 space-y-1.5">
+          <label className="text-xs font-extrabold text-indigo-900 flex items-center gap-1.5">
+            <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-md font-mono">BOX 0</span>
+            <span>📌 주제 / 제목</span>
+            <span className="text-[11px] text-indigo-400 font-normal">(웹툰의 메인 타이틀)</span>
+          </label>
+          <input
+            type="text"
+            value={storyTitle}
+            onChange={e => setStoryTitle(e.target.value)}
+            placeholder="예: 방황에서 성자(聖者)로: 어거스틴의 삶 (미입력 시 본문에서 자동 추출)"
+            className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
+          />
+        </div>
+
+        {/* ── [BOX 1 ~ BOX 9] 컷별 본문 입력창 그리드 ── */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs font-bold text-gray-700 px-1">
+            <span>📖 컷별 본문 입력 (9개 박스)</span>
+            <span className="text-gray-400 font-normal">사람이 없으면 배경/사물만 생성되며, 억지 인물/각도는 적용되지 않습니다.</span>
           </div>
 
-          {/* ══════════════════════════════════════════════════════════════ */}
-          {/* 요구사항 (나): 입력한 스토리 text 바로 밑에 20개 콘티 형식 text 표시 */}
-          {/* ══════════════════════════════════════════════════════════════ */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            {/* 콘티 헤더 바 */}
-            <div className="px-5 py-4 bg-gradient-to-r from-gray-900 to-indigo-950 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 bg-indigo-500/30 border border-indigo-400/40 rounded-lg flex items-center justify-center">
-                  <Film className="w-4 h-4 text-indigo-300" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold tracking-tight">🎬 20컷 웹툰 콘티 형식 텍스트</h3>
-                    <span className="text-[11px] bg-indigo-500/40 text-indigo-200 px-2 py-0.5 rounded-full font-semibold">
-                      기·승·전·결 4단계 기획안
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {cutBoxes.map((text, idx) => {
+              const phaseInfo = NINE_CUT_PHASES[idx];
+              const pColor = PHASE_COLORS[phaseInfo.code];
+              const isFilled = text.trim().length > 0;
+
+              return (
+                <div
+                  key={idx}
+                  className={`bg-white rounded-2xl border-2 transition-all p-3.5 space-y-2 flex flex-col justify-between ${
+                    isFilled ? `${pColor.border} shadow-sm bg-gradient-to-b from-white to-gray-50/40` : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${pColor.badge}`}>
+                        #{idx + 1}
+                      </span>
+                      <span className={`text-[11px] font-bold ${pColor.text}`}>
+                        {phaseInfo.label}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      {text.length}자
                     </span>
                   </div>
-                  <p className="text-[11px] text-gray-300">
-                    스토리 본문을 분석하여 정리한 20컷의 장면 연출, 카메라 앵글, 대사 및 지문입니다.
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                {/* 뷰 모드 토글 */}
-                <div className="hidden sm:flex bg-gray-800/80 rounded-lg p-0.5 border border-gray-700 text-xs">
-                  <button
-                    onClick={() => setContiViewMode('cards')}
-                    className={`px-2.5 py-1 rounded font-medium transition-all ${
-                      contiViewMode === 'cards' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    카드형
-                  </button>
-                  <button
-                    onClick={() => setContiViewMode('script')}
-                    className={`px-2.5 py-1 rounded font-medium transition-all ${
-                      contiViewMode === 'script' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    대본형
-                  </button>
-                </div>
+                  <textarea
+                    value={text}
+                    onChange={e => handleCutChange(idx, e.target.value)}
+                    placeholder={`#${idx + 1} 장면 본문 내용을 입력하세요...`}
+                    rows={4}
+                    className="w-full text-xs text-gray-800 placeholder:text-gray-400 bg-transparent resize-none focus:outline-none leading-relaxed"
+                  />
 
-                {/* 복사 버튼 */}
-                {contiCuts.length > 0 && (
-                  <button
-                    onClick={handleCopyContiText}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white text-xs font-semibold rounded-lg border border-gray-700 transition-all shadow-sm"
-                    title="콘티 전체 텍스트 복사"
-                  >
-                    {copiedConti ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedConti ? '복사 완료!' : '콘티 복사'}</span>
-                  </button>
-                )}
-
-                {/* 섹션 접기/펼치기 */}
-                <button
-                  onClick={() => setShowContiSection(!showContiSection)}
-                  className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors"
-                >
-                  {showContiSection ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* 콘티 본문 */}
-            {showContiSection && (
-              <div className="p-5">
-                {contiCuts.length === 0 ? (
-                  <div className="py-12 text-center text-gray-400">
-                    <Film className="w-10 h-10 mx-auto mb-2.5 text-gray-300 stroke-1" />
-                    <p className="text-sm font-medium text-gray-600">스토리를 입력하면 20컷 콘티가 이곳에 자동으로 표시됩니다.</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      상단 본문란에 A4 반장 분량의 이야기를 입력해 보세요.
-                    </p>
+                  {/* 본문에서 자동 추출된 제목 힌트 */}
+                  <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-400">
+                    <span className="truncate max-w-[85%] font-medium">
+                      {isFilled ? `제목: ${text.slice(0, 16)}...` : '내용을 입력하세요'}
+                    </span>
+                    {isFilled && <Check className="w-3 h-3 text-emerald-600 flex-shrink-0" />}
                   </div>
-                ) : (
-                  <div>
-                    {/* 상단 요약 바 */}
-                    <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100 text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-gray-800">총 {contiCuts.length}개 컷 구성</span>
-                        <div className="flex gap-1.5">
-                          {['기 (1-5컷)', '승 (6-10컷)', '전 (11-15컷)', '결 (16-20컷)'].map((p, idx) => (
-                            <span
-                              key={p}
-                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                                idx === 0
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : idx === 1
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : idx === 2
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-purple-100 text-purple-800'
-                              }`}
-                            >
-                              {p}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <span className="text-gray-400 text-[11px]">※ 실시간 스토리 분석 결과</span>
-                    </div>
-
-                    {/* 카드형 뷰 */}
-                    {contiViewMode === 'cards' ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[640px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
-                        {contiCuts.map((cut) => {
-                          const phaseInitial = cut.phase_code || (cut.phase.slice(0, 1) as '기' | '승' | '전' | '결');
-                          const pStyle = PHASE_COLORS[phaseInitial] || PHASE_COLORS['기'];
-                          const completed = completedCuts.find((c) => c.cut_index === cut.cut_index);
-
-                          return (
-                            <div
-                              key={cut.cut_index}
-                              className={`p-3.5 rounded-xl border transition-all ${
-                                completed
-                                  ? 'bg-indigo-50/40 border-indigo-200 shadow-sm'
-                                  : `${pStyle.bg} ${pStyle.border}`
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${pStyle.badge}`}>
-                                    #{String(cut.cut_index).padStart(2, '0')} {phaseInitial}
-                                  </span>
-                                  <h4 className="text-xs font-bold text-gray-800 truncate">{cut.scene_title}</h4>
-                                </div>
-                                {completed && (
-                                  <span className="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold flex items-center gap-1">
-                                    <Check className="w-2.5 h-2.5" /> 그림 완료
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* 카메라 앵글 */}
-                              {cut.camera_angle && (
-                                <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-2">
-                                  <Camera className="w-3 h-3 text-indigo-500 shrink-0" />
-                                  <span className="font-medium text-gray-600">{cut.camera_angle}</span>
-                                </div>
-                              )}
-
-                              {/* 대사 */}
-                              {cut.dialogue ? (
-                                <div className="bg-white/90 rounded-lg p-2 border border-gray-200/80 mb-2 shadow-2xs">
-                                  <div className="text-[10px] font-bold text-indigo-600 mb-0.5 flex items-center gap-1">
-                                    <MessageSquare className="w-3 h-3" />
-                                    <span>{cut.speaker || '인물'}</span>
-                                  </div>
-                                  <p className="text-xs font-semibold text-gray-900 leading-snug">
-                                    "{cut.dialogue}"
-                                  </p>
-                                </div>
-                              ) : null}
-
-                              {/* 지문 / 연출 상황 */}
-                              <p className="text-[11px] text-gray-600 leading-relaxed bg-white/50 p-2 rounded-lg border border-gray-100">
-                                <span className="font-semibold text-gray-700">지문: </span>
-                                {cut.direction}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      /* 대본형 뷰 */
-                      <div className="max-h-[640px] overflow-y-auto space-y-2 pr-1 text-xs font-sans scrollbar-thin scrollbar-thumb-gray-200">
-                        {contiCuts.map((cut) => {
-                          const phaseInitial = cut.phase_code || (cut.phase.slice(0, 1) as '기' | '승' | '전' | '결');
-                          const pStyle = PHASE_COLORS[phaseInitial] || PHASE_COLORS['기'];
-
-                          return (
-                            <div
-                              key={cut.cut_index}
-                              className="p-3 bg-gray-50 rounded-xl border border-gray-200 flex flex-col gap-1 hover:bg-white transition-colors"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${pStyle.badge}`}>
-                                    컷 {cut.cut_index} · {cut.phase}
-                                  </span>
-                                  <strong className="text-gray-900">{cut.scene_title}</strong>
-                                </div>
-                                <span className="text-[11px] text-gray-400">{cut.camera_angle}</span>
-                              </div>
-                              <p className="text-gray-600 text-[11px] mt-0.5">
-                                <span className="font-medium text-gray-800">[상황 지문]</span> {cut.direction}
-                              </p>
-                              {cut.dialogue && (
-                                <p className="text-indigo-700 font-semibold text-xs mt-0.5">
-                                  <span className="text-gray-500">[{cut.speaker}]</span> "{cut.dialogue}"
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* 오른쪽: 컨트롤 및 생성 상태 패널 */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">🚀 20컷 웹툰 자동 생성</h3>
-
-            {!generating ? (
-              <button
-                onClick={handleGenerate}
-                disabled={!story.trim() || story.trim().length < 25}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
-              >
-                <Sparkles className="w-4 h-4" />
-                20컷 웹툰 생성하기
-              </button>
-            ) : (
-              <button
-                onClick={handleStop}
-                className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-4 rounded-xl border-2 border-red-200 transition-all flex items-center justify-center gap-2 text-sm"
-              >
-                <span className="w-3 h-3 bg-red-500 rounded-sm" />
-                생성 중지
-              </button>
-            )}
-
-            {finished && (
-              <div className="mt-3 space-y-2">
-                <button
-                  onClick={onViewWebtoon}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  📖 웹툰 감상 및 내보내기
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="w-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  새로운 이야기로 다시 만들기
-                </button>
-              </div>
-            )}
+        {/* ── 생성 실행 버튼 ── */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100">
+          <div className="text-xs text-gray-500">
+            총 <strong>{filledCount}개</strong>의 컷이 작성되었습니다. (권장: 9컷 전체 작성)
           </div>
 
-          {/* 진행 상황 */}
-          {(generating || progress > 0) && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700">📊 생성 진행률</h3>
-                <span className="text-sm font-bold text-indigo-600">{Math.round(progress)}%</span>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden mb-3">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    generating ? 'progress-shimmer' : 'bg-gradient-to-r from-indigo-500 to-purple-500'
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {finished && completedCuts.length > 0 && (
+              <button
+                type="button"
+                onClick={onViewWebtoon}
+                className="flex-1 sm:flex-none text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-4 py-3 rounded-2xl transition-all flex items-center justify-center gap-1.5"
+              >
+                <BookOpen className="w-4 h-4" />
+                완성된 9컷 웹툰 보기
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={generating || filledCount === 0}
+              className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-lg hover:shadow-xl disabled:opacity-50 transition-all flex items-center justify-center gap-2 min-w-[200px]"
+            >
+              {generating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  생성 중... ({progress}%)
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  9컷 웹툰 생성하기
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* 진행률 바 */}
+        {generating && (
+          <div className="space-y-2 pt-2 animate-in fade-in duration-300">
+            <div className="flex justify-between text-xs text-gray-600 font-medium">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-indigo-600 animate-spin" />
+                {statusMsg}
+              </span>
+              <span className="font-bold text-indigo-600">{progress}%</span>
+            </div>
+            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden p-0.5">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── 2. 콘티 형식 텍스트 표시 영역 (요구사항 3) ── */}
+      {contiCuts.length > 0 && (
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Film className="w-5 h-5 text-indigo-600" />
+                9컷 콘티 형식 텍스트
+                <span className="text-xs bg-indigo-50 text-indigo-600 font-bold px-2 py-0.5 rounded-full">
+                  총 9컷
+                </span>
+              </h3>
+              <p className="text-xs text-gray-400 mt-0.5">
+                스토리 본문에서 발췌한 장면 제목과 사람 출현 여부에 맞춘 연출 콘티입니다.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* 뷰 모드 토글 */}
+              <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs">
+                <button
+                  type="button"
+                  onClick={() => setContiViewMode('cards')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                    contiViewMode === 'cards' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
                   }`}
-                  style={{ width: `${progress}%` }}
-                />
+                >
+                  카드형
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContiViewMode('script')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                    contiViewMode === 'script' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  대본형
+                </button>
               </div>
-              {statusMsg && <p className="text-xs text-gray-600 leading-relaxed font-medium">{statusMsg}</p>}
-              {generating && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2">
-                  <Clock className="w-3.5 h-3.5 animate-spin" />
-                  스토리 맞춤 AI 일러스트 생성 및 동기화 중...
+
+              {/* 클립보드 복사 */}
+              <button
+                type="button"
+                onClick={handleCopyConti}
+                className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-2 rounded-xl transition-all font-medium"
+              >
+                {copiedConti ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedConti ? '복사됨!' : '콘티 복사'}
+              </button>
+
+              {/* 접기/펼치기 */}
+              <button
+                type="button"
+                onClick={() => setShowContiSection(!showContiSection)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                {showContiSection ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {showContiSection && (
+            <>
+              {contiViewMode === 'cards' ? (
+                /* ── 카드형 뷰 ── */
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                  {contiCuts.map(cut => {
+                    const pColor = PHASE_COLORS[cut.phase_code] || PHASE_COLORS.기;
+                    return (
+                      <div
+                        key={cut.cut_index}
+                        className={`rounded-2xl border ${pColor.border} ${pColor.bg} p-4 space-y-2.5 hover:shadow-md transition-shadow`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${pColor.badge}`}>
+                            #{String(cut.cut_index).padStart(2, '0')} {cut.phase_code}
+                          </span>
+                          <span className="text-[11px] font-semibold text-gray-500 flex items-center gap-1">
+                            <Camera className="w-3 h-3 text-gray-400" />
+                            {cut.camera_angle}
+                          </span>
+                        </div>
+
+                        <h4 className="text-sm font-bold text-gray-900 leading-snug">
+                          {cut.scene_title}
+                        </h4>
+
+                        <div className="bg-white/90 rounded-xl p-2.5 border border-gray-100 text-xs text-gray-700 leading-relaxed">
+                          <span className="text-[10px] font-bold text-gray-400 block mb-0.5">지문 / 본문</span>
+                          <p className="line-clamp-3">{cut.direction}</p>
+                        </div>
+
+                        {/* 사람 유무 뱃지 */}
+                        <div className="flex items-center justify-between text-[11px] pt-1">
+                          <span className="text-gray-500">
+                            {cut.hasHuman ? '👤 인물 중심' : '🏞️ 순수 배경·풍경'}
+                          </span>
+                          <span className="text-gray-400 font-mono text-[10px]">
+                            {cut.speaker}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* ── 대본형 뷰 ── */
+                <div className="bg-gray-950 text-gray-200 rounded-2xl p-5 font-mono text-xs space-y-3 max-h-96 overflow-y-auto">
+                  <div className="text-indigo-400 font-bold border-b border-gray-800 pb-2">
+                    === {storyTitle || '9컷 웹툰 콘티 대본'} ===
+                  </div>
+                  {contiCuts.map(cut => (
+                    <div key={cut.cut_index} className="border-b border-gray-800/60 pb-3 space-y-1">
+                      <div className="text-emerald-400 font-bold">
+                        CUT #{cut.cut_index} [{cut.phase}] : {cut.scene_title}
+                      </div>
+                      <div className="text-gray-400">• 연출 구도: {cut.camera_angle} ({cut.hasHuman ? '인물 샷' : '배경 풍경'})</div>
+                      <div className="text-gray-300">• 지문: {cut.direction}</div>
+                      <div className="text-indigo-300">• 프롬프트: {cut.prompt}</div>
+                    </div>
+                  ))}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* 실시간 컷 썸네일 그리드 */}
-          {completedCuts.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700">🎬 생성된 컷</h3>
-                <span className="text-xs text-indigo-600 font-bold">{completedCuts.length} / 20</span>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {Array.from({ length: 20 }, (_, i) => {
-                  const cut = completedCuts.find((c) => c.cut_index === i + 1);
-                  const isDataOrHttp =
-                    cut && (cut.image_url.startsWith('http') || cut.image_url.startsWith('data:'));
-                  const imgSrc = cut ? (isDataOrHttp ? cut.image_url : `${API_BASE}${cut.image_url}`) : '';
-
-                  return (
-                    <div
-                      key={i}
-                      className="aspect-[3/4] rounded-lg overflow-hidden bg-gray-100 relative border border-gray-200"
-                    >
-                      {cut ? (
-                        <>
-                          <img
-                            key={`${sessionId}_${cut.cut_index}_${cut.image_url}`}
-                            src={imgSrc}
-                            alt={cut.scene_title}
-                            className="w-full h-full object-cover pop-in"
-                            onError={(e) => {
-                              if (cut.fallback_url && (e.target as HTMLImageElement).src !== cut.fallback_url) {
-                                (e.target as HTMLImageElement).src = cut.fallback_url;
-                              }
-                            }}
-                          />
-                          <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-indigo-600 rounded-sm flex items-center justify-center shadow">
-                            <CheckCircle className="w-3 h-3 text-white" />
-                          </div>
-                          <span className="absolute bottom-0.5 right-0.5 bg-black/70 text-white text-[9px] px-1 rounded font-mono">
-                            #{i + 1}
-                          </span>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-                          <ImgIcon className="w-4 h-4 mb-0.5" />
-                          <span className="text-[9px] font-mono font-semibold">#{i + 1}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            </>
           )}
         </div>
-      </div>
+      )}
+
+      {/* ── 통글 9컷 자동 배분 모달 ── */}
+      {showBatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold flex items-center gap-2">
+                  <Split className="w-4 h-4" />
+                  긴 글 한 번에 붙여넣기 (9컷 자동 배분)
+                </h3>
+                <p className="text-xs text-indigo-100 mt-0.5">
+                  A4지 분량의 전체 글을 넣으시면 9개 박스에 문장별로 고르게 배분해 드립니다.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBatchModal(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <textarea
+                value={batchText}
+                onChange={e => setBatchText(e.target.value)}
+                rows={8}
+                placeholder="여기에 원작 스토리 본문 전체를 붙여넣으세요..."
+                className="w-full border border-gray-200 rounded-2xl p-4 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 leading-relaxed"
+              />
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchModal(false)}
+                  className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl text-xs"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyBatchSplit}
+                  disabled={!batchText.trim()}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs disabled:opacity-50"
+                >
+                  9개 박스에 배분하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
