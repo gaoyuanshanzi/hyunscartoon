@@ -141,9 +141,41 @@ export default function GeneratorPanel({
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // 10개 박스 내용이 변경될 때마다 실시간 9컷 콘티 및 고차원 비주얼 프롬프트 갱신
+  // 1. localStorage에서 저장된 스토리 복원 (삭제 버튼 누르기 전까지 영구 보존)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('webtoon_story_backup_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.storyTitle !== undefined) setStoryTitle(parsed.storyTitle);
+        if (Array.isArray(parsed.cutBoxes)) setCutBoxes(parsed.cutBoxes);
+        if (Array.isArray(parsed.customPrompts)) setCustomPrompts(parsed.customPrompts);
+        if (parsed.genre) setGenre(parsed.genre);
+      }
+    } catch (e) {
+      console.warn('localStorage load error:', e);
+    }
+  }, []);
+
+  // 2. 10개 박스 내용이 변경될 때마다 localStorage 자동 백업 & 실시간 9컷 콘티 갱신
   useEffect(() => {
     const hasAnyContent = storyTitle.trim().length > 0 || cutBoxes.some(c => c.trim().length > 0);
+
+    // localStorage 자동 저장
+    if (hasAnyContent) {
+      try {
+        localStorage.setItem(
+          'webtoon_story_backup_v1',
+          JSON.stringify({
+            storyTitle,
+            cutBoxes,
+            customPrompts,
+            genre,
+          })
+        );
+      } catch (e) {}
+    }
+
     if (!hasAnyContent) {
       setContiCuts([]);
       return;
@@ -201,13 +233,16 @@ export default function GeneratorPanel({
     setCustomPrompts(Array(9).fill('')); // 새 예시에 맞게 자동 재생성
   };
 
-  // 전체 초기화
+  // 전체 초기화 (사용자가 삭제 버튼을 직접 누를 때만 완전 삭제)
   const handleClearAll = () => {
-    if (confirm('입력한 10개 박스 내용을 모두 지우시겠습니까?')) {
+    if (confirm('입력한 10개 박스 내용과 콘티를 모두 삭제하시겠습니까? (삭제 후에는 복구할 수 없습니다)')) {
       setStoryTitle('');
       setCutBoxes(Array(9).fill(''));
       setCustomPrompts(Array(9).fill(''));
       setContiCuts([]);
+      try {
+        localStorage.removeItem('webtoon_story_backup_v1');
+      } catch (e) {}
     }
   };
 
@@ -251,6 +286,138 @@ export default function GeneratorPanel({
     navigator.clipboard.writeText(`=== ${storyTitle || '9컷 웹툰 콘티'} ===\n\n` + text);
     setCopiedConti(true);
     setTimeout(() => setCopiedConti(false), 2000);
+  };
+
+  // 최초 입력 내용과 콘티 내용 HTML 파일로 내보내기 (요구사항)
+  const handleExportScenarioContiHtml = () => {
+    const hasAnyContent = storyTitle.trim().length > 0 || cutBoxes.some(c => c.trim().length > 0);
+    if (!hasAnyContent) {
+      alert('내보낼 시나리오나 콘티 내용이 없습니다. 먼저 내용을 입력해 주세요.');
+      return;
+    }
+
+    const now = new Date().toLocaleString('ko-KR');
+    const safeTitle = (storyTitle || '9컷_웹툰_시나리오_콘티').replace(/[^가-힣a-zA-Z0-9]/g, '_');
+
+    // 10개 박스 본문 HTML
+    const boxesHtml = cutBoxes
+      .map((text, idx) => {
+        const phase = NINE_CUT_PHASES[idx];
+        return `
+        <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="background: #4f46e5; color: #ffffff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px;">
+              #${idx + 1} (${phase.label})
+            </span>
+            <span style="font-size: 11px; color: #94a3b8;">${text.length}자</span>
+          </div>
+          <p style="font-size: 14px; color: #1e293b; line-height: 1.6; margin: 0; white-space: pre-wrap;">${text || '(내용 없음)'}</p>
+        </div>`;
+      })
+      .join('');
+
+    // 9컷 콘티 & 영문 비주얼 프롬프트 HTML
+    const contiHtml = contiCuts
+      .map((c, idx) => {
+        const promptToUse = customPrompts[idx] || c.prompt;
+        return `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 12px; font-weight: 800; color: #4f46e5; text-align: center; vertical-align: top; width: 60px;">
+            #${c.cut_index}<br>
+            <span style="font-size: 10px; color: #64748b;">${c.phase_code}</span>
+          </td>
+          <td style="padding: 12px; vertical-align: top; width: 140px;">
+            <strong style="color: #0f172a; font-size: 13px; display: block; margin-bottom: 4px;">${c.scene_title}</strong>
+            <span style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+              📷 ${c.camera_angle}
+            </span>
+          </td>
+          <td style="padding: 12px; vertical-align: top;">
+            <div style="margin-bottom: 6px;">
+              <span style="font-size: 11px; font-weight: 700; color: #4f46e5;">💬 ${c.speaker}:</span>
+              <span style="font-size: 13px; color: #1e293b; font-weight: 600;">"${c.dialogue}"</span>
+            </div>
+            <p style="font-size: 12px; color: #475569; margin: 0 0 8px 0; line-height: 1.5;">${c.direction}</p>
+            <div style="background: #0f172a; color: #93c5fd; padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 11px; line-height: 1.4;">
+              <strong style="color: #38bdf8;">Visual Prompt:</strong> ${promptToUse}
+            </div>
+          </td>
+        </tr>`;
+      })
+      .join('');
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>${storyTitle || '웹툰 기획서'} – 원작 시나리오 & 9컷 콘티</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Malgun Gothic", sans-serif; background: #f8fafc; color: #0f172a; padding: 32px 16px; margin: 0; }
+    .container { max-width: 900px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); color: #ffffff; padding: 40px 32px; text-align: center; }
+    .header small { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #a5b4fc; font-weight: 700; }
+    .header h1 { font-size: 26px; font-weight: 900; margin: 10px 0 6px; }
+    .header p { font-size: 13px; color: #c7d2fe; margin: 0; }
+    .content { padding: 36px 32px; }
+    .section-title { font-size: 17px; font-weight: 800; color: #0f172a; border-left: 4px solid #4f46e5; padding-left: 10px; margin: 28px 0 16px; display: flex; align-items: center; justify-content: space-between; }
+    table { width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    th { background: #f8fafc; padding: 12px; text-align: left; font-size: 12px; color: #475569; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+    .footer { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; border-top: 1px solid #f1f5f9; }
+    @media print {
+      body { background: #ffffff; padding: 0; }
+      .container { box-shadow: none; border: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <small>Hyun's Cartoon Studio · 기획 문서</small>
+      <h1>${storyTitle || '9컷 웹툰 시나리오 & 콘티 기획안'}</h1>
+      <p>장르: ${genre.toUpperCase()} · 총 9컷 연출 기획서 · 작성일: ${now}</p>
+    </div>
+    <div class="content">
+      <div class="section-title">
+        <span>📖 [섹션 1] 원작 스토리 본문 (10개 박스)</span>
+      </div>
+      <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 18px; margin-bottom: 24px;">
+        <div style="font-size: 11px; font-weight: 800; color: #4f46e5; margin-bottom: 4px;">📌 [BOX 0] 주제 / 제목</div>
+        <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${storyTitle || '(미지정)'}</div>
+      </div>
+      ${boxesHtml}
+
+      <div class="section-title">
+        <span>🎬 [섹션 2] 9컷 웹툰 콘티 &amp; 영문 비주얼 프롬프트 (Visual Prompt)</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 60px; text-align: center;">컷</th>
+            <th style="width: 140px;">장면 및 구도</th>
+            <th>대사 / 연출 지문 / 고차원 비주얼 프롬프트</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${contiHtml}
+        </tbody>
+      </table>
+    </div>
+    <div class="footer">
+      Hyun's Cartoon Studio · 9컷 웹툰 시나리오 &amp; 콘티 기획안 HTML 내보내기 문서
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeTitle}_scenario_conti.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // 9컷 웹툰 생성 시작
@@ -347,6 +514,17 @@ export default function GeneratorPanel({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* 시나리오·콘티 HTML 내보내기 버튼 */}
+            <button
+              type="button"
+              onClick={handleExportScenarioContiHtml}
+              className="flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition-all font-bold shadow-sm"
+              title="최초 입력 시나리오와 9컷 콘티 기획서를 HTML 문서로 다운로드"
+            >
+              <FileText className="w-3.5 h-3.5 text-emerald-600" />
+              📄 시나리오·콘티 HTML 내보내기
+            </button>
+
             {/* 전체 텍스트 일괄 배분 버튼 */}
             <button
               type="button"
@@ -621,6 +799,17 @@ export default function GeneratorPanel({
                   대본형
                 </button>
               </div>
+
+              {/* 콘티 & 시나리오 HTML 내보내기 */}
+              <button
+                type="button"
+                onClick={handleExportScenarioContiHtml}
+                className="flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition-all font-bold shadow-sm"
+                title="시나리오와 9컷 콘티 기획서를 HTML 문서로 다운로드"
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                HTML 내보내기
+              </button>
 
               {/* 클립보드 복사 */}
               <button

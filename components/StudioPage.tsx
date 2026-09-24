@@ -110,9 +110,9 @@ export default function StudioPage({ token, onLogout }: Props) {
           </div>
         </header>
 
-        {/* 메인 컨텐츠 */}
+        {/* 메인 컨텐츠: 뷰어 전환 시에도 입력 내용과 콘티가 초기화되지 않고 100% 보존 */}
         <main className="flex-1 px-4 sm:px-6 py-8">
-          {view === 'studio' ? (
+          <div className={view === 'studio' ? 'block' : 'hidden'}>
             <GeneratorPanel
               token={token}
               generating={generating}
@@ -130,14 +130,16 @@ export default function StudioPage({ token, onLogout }: Props) {
               sessionId={sessionId}
               setSessionId={setSessionId}
             />
-          ) : (
+          </div>
+
+          <div className={view === 'viewer' ? 'block' : 'hidden'}>
             <WebtoonViewer
               cuts={completedCuts}
               title={webtoonTitle}
               sessionId={sessionId}
               onBack={() => setView('studio')}
             />
-          )}
+          </div>
         </main>
       </div>
     </div>
